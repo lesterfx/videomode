@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pinmame"
+version = "0.1.0"
+description = "Python ctypes binding for libpinmame"
+requires-python = ">=3.11"
+dependencies = []   # ctypes is part of the stdlib — no pip deps needed
+
+[project.scripts]
+dmd-demo = "dmd_demo:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pinmame*"]
