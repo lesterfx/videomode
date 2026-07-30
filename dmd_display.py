@@ -126,6 +126,7 @@ class DMDDisplay:
         self.shown = False
         self.label_getter = None
 
+        self.screenshotting = False
         self.stack = deque(maxlen=50)
 
         # Resolve backend
@@ -170,7 +171,8 @@ class DMDDisplay:
                 raise ValueError(f'Unknown frame size {len(frame)}')
             frame = self._resample(frame, src_w, src_h)
 
-        self.stack.append(frame)
+        if self.screenshotting:
+            self.stack.append(frame)
 
         if self._use_terminal:
             print_frame(frame, self.shown, self.label_getter)

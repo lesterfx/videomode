@@ -187,19 +187,26 @@ def print_ansi_frame(
 ) -> None:
     """Print an ANSI-coloured frame """
     now = time.monotonic()
-    if now - _last_print < 1/10:
-        return
+    # if now - _last_print < 1/10:
+    #     return
     last_print = time.monotonic()
     if scroll_to_top:
-        SCROLL_HEIGHT = height+4
+        SCROLL_HEIGHT = height+6
         sys.stdout.write(f"\x1b[{SCROLL_HEIGHT}A\x1b[J")
 
     if label_getter:
         print(label_getter(), end='\r\n')
     else:
-        print(end='\r\n')
+        print('\n\n\n', end='\r\n')
 
+    sep = ''.center(128*2, '-')
+    print(f"+{sep}+", end='\r\n')
     for row in render_ansi(frame, double_wide=True):
-        print(row, end='\r\n')
+        print(f"│{row}│", end='\r\n')
+
+    print(f"+{sep}+", end='\r\n')
+
+
+
 
 print_frame = print_ansi_frame

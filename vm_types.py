@@ -25,7 +25,7 @@ class GameParent:
 
     end_detector_config: Optional['EndDetectorConfig'] = None
 
-    screenshot: Optional[str] = None
+    switch_matrix_indexes: Optional[list[int]] = None
 
 
 @dataclass
@@ -38,17 +38,18 @@ class GameEntry:
     snapshot_index: Optional[int] = None
     # save state restore index for this snapshot
 
-    initials: Optional[str] = None
-    high_score: int = 0
-    # initials and points for the current high score
+    notes: Optional[str] = None
+
+    @property
+    def unique_name(self):
+        return f'{self.parent.rom}|{self.snapshot_index}'
 
 @dataclass
 class VideoModeResult:
     """Outcome of a single video mode session."""
     game: GameEntry
-    score: int
+    score: Optional[int]  # int if actual score, else None
     duration_seconds: float
-    ended_naturally: bool   # False if user quit or error occurred
 
 @dataclass
 class EndDetectorConfig:

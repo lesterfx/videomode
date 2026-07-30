@@ -90,17 +90,20 @@ class EndDetector:
                 #     f"{session_age:.4f} < grace period {self._config.grace_period_seconds}"
                 # )
                 return
-            if bool(state) != bool(self._config.solenoid_trigger_state):
+            if self._config.trigger_solenoid is not None and solenoid != self._config.trigger_solenoid:
                 self.log.info(
-                    f"Ignore solenoid {solenoid} change because state is not {self._config.solenoid_trigger_state}"
+                    f"Ignore solenoid {solenoid} because is not trigget_solenoid {self._config.trigger_solenoid}"
                 )
+                return
+            if bool(state) != bool(self._config.solenoid_trigger_state):
+                # self.log.info(
+                #     f"Ignore solenoid {solenoid} change because state is not {self._config.solenoid_trigger_state}"
+                # )
                 return
             if solenoid in self._config.ignored_solenoids:
                 # self.log.info(
                 #     f"solenoid {solenoid} ignored in {self._config.ignored_solenoids}"
                 # )
-                return
-            if self._config.trigger_solenoid is not None and solenoid != self._config.trigger_solenoid:
                 return
 
             self._triggering_solenoid = solenoid

@@ -11,7 +11,7 @@ Lifecycle expected by pinmame_player.py
   bridge.connect()                          # load .so, configure callbacks
   bridge.load_snapshot(rom, snapshot_path)  # start ROM, restore state
   bridge.send_switch(sw, active)            # inject button events
-  scores = bridge.get_scores()              # read score from emulator memory
+  scores = bridge.get_score()               # read score from emulator memory
   bridge.stop()                             # stop cleanly
 
 Callback hooks (set before load_snapshot)
@@ -62,6 +62,8 @@ from pinmame._types import (
     OnSoundCommandFn,
     Keycode
 )
+
+import nvram_scores
 
 # How long to wait for PinmameIsRunning() to become true after PinmameRun()
 _STARTUP_TIMEOUT_S  = 3.0
@@ -175,10 +177,12 @@ class PinMAMEBridge:
         now this method starts the ROM cleanly and logs the snapshot path so
         Phase 6 can hook in without changing the call site.
         """
+        self._rom_name = rom_name
+
         if self._lib is None:
             raise RuntimeError("connect() must be called before load_snapshot()")
 
-        raw = self._lib.PinmameRun(rom_name.encode())
+        raw = self._lib.PinmameRun(self._rom_name.encode())
         try:
             status = Status(raw)
         except ValueError:
@@ -186,10 +190,10 @@ class PinMAMEBridge:
 
         if status != Status.OK:
             raise RuntimeError(
-                f"PinmameRun({rom_name!r}) failed: "
+                f"PinmameRun({self._rom_name!r}) failed: "
                 f"{status.name if status else raw}"
             )
-        self.log.debug("PinmameRun(%r) → %s", rom_name, status.name if status else raw)
+        self.log.debug("PinmameRun(%r) → %s", self._rom_name, status.name if status else raw)
         self._lamps = set()
 
         # Wait for the emulator thread to become ready
@@ -208,7 +212,7 @@ class PinMAMEBridge:
         self._lib.PinmameSetDmdMode(int(self._dmd_mode))
         self._lib.PinmameSetSoundMode(int(SoundMode.DEFAULT))
 
-        self.log.info("Emulator running — ROM=%r", rom_name)
+        self.log.info("Emulator running — ROM=%r", self._rom_name)
 
     # ------------------------------------------------------------------
     # send_switch() — inject a switch-matrix event into the emulator.
@@ -226,10 +230,10 @@ class PinMAMEBridge:
         self._lib.PinmameSetSwitch(switch_number, int(active))
 
     # ------------------------------------------------------------------
-    # get_scores() — read current player scores from emulator memory.
+    # get_score() — read current player scores from emulator memory.
     # ------------------------------------------------------------------
 
-    def get_scores(self) -> list[int]:
+    def get_score(self) -> Optional[int]:
         """
         Return current player scores.
 
@@ -239,12 +243,11 @@ class PinMAMEBridge:
         Phase 8 will implement per-game memory maps.  For now this returns
         an empty list so the call site in pinmame_player.py does not raise.
         """
-        # Phase 8 implementation:
-        #   region = self._lib.PinmameGetRawMemoryRegion(0)
-        #   length = self._lib.PinmameGetRawMemoryRegionLength(0)
-        #   raw    = bytes((ctypes.c_uint8 * length).from_address(region))
-        #   return _decode_scores(raw, self._rom_name)
-        return []
+
+        if getattr(self, "_rom_name", None) is None:
+            return None
+        score = nvram_scores.get_player1_score(self._lib, self._rom_name)
+        return score
 
     # ------------------------------------------------------------------
     # stop() — shut down the emulator cleanly.

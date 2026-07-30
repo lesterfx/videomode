@@ -55,27 +55,51 @@ class VideoModeSession:
  
         Returns:
             VideoModeResult with score populated from PinMAMEBridge,
-            or score=0 / ended_naturally=False in snapshotter mode.
+            or score=None in snapshotter mode.
         """
-        # Wire DMD frames to the physical display for both modes.
+        self.log.info('disabling dmd')
         self.pinmame.dmd_callback = self.display.show_frame
+        # self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
         self.pinmame.load_game(game.parent.rom)
-
-        for switch in game.parent.active_switches:
-            self.pinmame.send_switch(switch, True)
 
         self.detector.reset(game.parent.end_detector_config, active=False)
         self.load_snapshot(game.snapshot_index)
+
+        start_time = time.monotonic()
+        start_score = 0
+        try:
+            while time.monotonic() < start_time + 10:
+                for switch in game.parent.active_switches:
+                    self.pinmame.send_switch(switch, True)
+                self.log.info('start_score is %s', start_score)
+                score_now = self.pinmame.get_score()
+                if score_now is None:
+                    time.sleep(0.1)
+                else:
+                    start_score = max(start_score, score_now)
+                    if time.monotonic() < start_time + 3: continue
+                    break
+            else:
+                raise ValueError('After 10 seconds, score is still not logged')
+        except:
+            self.pinmame.stop()
+            raise
+
+         # Wire DMD frames to the physical display for both modes.
+        self.log.info('setting up dmd for real now')
+        self.pinmame.dmd_callback = self.display.show_frame
         self.detector.reset(game.parent.end_detector_config)
 
-        start = time.monotonic()
         self.log.debug("Entering normal play loop")
  
+        score = None
         try:
             while True:
+
                 # --- end detection ------------------------------------------
                 if self.detector.ended:
                     self.log.info("EndDetector signalled end of video mode")
+                    end_time = time.monotonic()
                     break
  
                 # --- button input -------------------------------------------
@@ -86,25 +110,37 @@ class VideoModeSession:
                             raise AttributeError('Left Flipper Switch is not defined')
                         self.log.info(f'left flipper [{game.parent.left_flipper_switch}] {event.pressed}')
                         self.pinmame.send_switch(game.parent.left_flipper_switch, event.pressed)
+
                     elif event.button is ButtonName.RIGHT_FLIPPER:
                         if game.parent.right_flipper_switch is None:
                             raise AttributeError('Right Flipper Switch is not defined')
                         self.log.info(f'right flipper [{game.parent.right_flipper_switch}] {event.pressed}')
                         self.pinmame.send_switch(game.parent.right_flipper_switch, event.pressed)
+
                     elif event.button is ButtonName.LAUNCH:
                         if game.parent.launch_switch is None:
                             raise AttributeError('Launch Switch is not defined (or 0)')
                         elif game.parent.launch_switch:
                             self.log.info(f'launch [{game.parent.launch_switch}] {event.pressed}')
                             self.pinmame.send_switch(game.parent.launch_switch, event.pressed)
- 
-        finally:
+
+        except:
             self.pinmame.stop()
- 
-        duration = time.monotonic() - start
-        scores   = self.pinmame.get_scores()
-        score    = scores[0] if scores else 0
-        self.log.info("Session ended (sol %d) — score=%d duration=%.1fs",
+            raise
+
+        try:
+            while time.monotonic() < end_time + 5:
+                self.log.info('waiting for the end, score is %s', self.pinmame.get_score())
+                time.sleep(0.1)
+        finally:
+            end_score = self.pinmame.get_score()
+            self.pinmame.stop()
+
+        if start_score is not None and end_score is not None:
+            score = end_score - start_score
+
+        duration = end_time - start_time
+        self.log.info("Session ended (sol %d) — score=%s duration=%.1fs",
             self.detector.triggering_solenoid,
             score,
             duration
@@ -113,8 +149,7 @@ class VideoModeSession:
         return VideoModeResult(
             game=game,
             score=score,
-            duration_seconds=duration,
-            ended_naturally=self.detector.ended,
+            duration_seconds=duration
         )
 
     def load_snapshot(self, index: int):

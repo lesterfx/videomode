@@ -86,17 +86,6 @@ class Snapshotter:
       Ctrl-C   → abort without writing a file
     """
 
-    _SNAPSHOTTER_KEYS: list[int] = [
-         1,  2,  3,  4,  5,  6,  7,  8,
-        11, 12, 13, 14, 15, 16, 17, 18,
-        21, 22, 23, 24, 25, 26, 27, 28,
-        31, 32, 33, 34, 35, 36, 37, 38,
-        41, 42, 43, 44, 45, 46, 47, 48,
-        51, 52, 53, 54, 55, 56, 57, 58,
-        61, 62, 63, 64, 65, 66, 67, 68,
-        71, 72, 73, 74, 75, 76, 77, 78,
-        81, 82, 83, 84, 85, 86, 87, 88,
-    ]
     _SNAPSHOTTER_CHARS: str = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?"
 
     def __init__(
@@ -121,9 +110,24 @@ class Snapshotter:
         Free-run emulation with keyboard → switch-matrix control.
 
         Blocks until the operator presses Enter (snapshot saved) or Ctrl-C
-        (abort).  Returns a VideoModeResult with score=0 and
-        ended_naturally=False in both cases.
+        (abort).  Returns a VideoModeResult with score=None in both cases.
         """
+
+        self.game = game
+        if not self.game.parent.switch_matrix_indexes:
+            self.game.parent.switch_matrix_indexes: list[int] = [
+                1,  2,  3,  4,  5,  6,  7,  8,
+                11, 12, 13, 14, 15, 16, 17, 18,
+                21, 22, 23, 24, 25, 26, 27, 28,
+                31, 32, 33, 34, 35, 36, 37, 38,
+                41, 42, 43, 44, 45, 46, 47, 48,
+                51, 52, 53, 54, 55, 56, 57, 58,
+                61, 62, 63, 64, 65, 66, 67, 68,
+                71, 72, 73, 74, 75, 76, 77, 78,
+                81, 82, 83, 84, 85, 86, 87, 88,
+            ]
+
+
         self.log.info("Snapshotter mode for %s — no snapshot loaded", game.parent.rom)
         self.pinmame.dmd_callback = self.display.show_frame
 
@@ -159,7 +163,7 @@ class Snapshotter:
                         self.log.info('Capturing screenshot...')
                         last_frames = self.display.stack
                         for last_frame in last_frames:
-                            chars = ''.join([str(int(ch)) for ch in last_frame])
+                            chars = ''.join([hex(int(ch))[2:] for ch in last_frame])
                             self.log.info(chars)
                         self.log.info('Screenshot above')
                     else:
@@ -196,9 +200,8 @@ class Snapshotter:
         duration = time.monotonic() - start
         return VideoModeResult(
             game=game,
-            score=0,
-            duration_seconds=duration,
-            ended_naturally=False,
+            score=None,
+            duration_seconds=duration
         )
 
     # ------------------------------------------------------------------
@@ -220,7 +223,7 @@ class Snapshotter:
 
     def _get_switches_label(self) -> str:
         r = 'switches: '
-        for i, idx in enumerate(self._SNAPSHOTTER_KEYS):
+        for i, idx in enumerate(self.game.parent.switch_matrix_indexes):
             if idx in self.active_switches:
                 r += self._SNAPSHOTTER_CHARS[i]
             else:
@@ -230,7 +233,7 @@ class Snapshotter:
     def _get_lamps_label(self):
         r = 'lamps: '
         lamps = self.pinmame.get_lamps()
-        for idx in self._SNAPSHOTTER_KEYS:
+        for idx in self.game.parent.switch_matrix_indexes:
             # if idx not in {28, 35, 37, 38, 36}: continue
             if idx in lamps:
                 r += str(idx)
@@ -242,7 +245,7 @@ class Snapshotter:
 
     def _switch_for_key(self, ch: str) -> Optional[int]:
         try:
-            return self._SNAPSHOTTER_KEYS[self._SNAPSHOTTER_CHARS.index(ch)]
+            return self.game.parent.switch_matrix_indexes[self._SNAPSHOTTER_CHARS.index(ch)]
         except (ValueError, IndexError):
             return None
 

@@ -32,7 +32,7 @@ from game_selector import GameSelector
 from rom_session import VideoModeSession
 from snapshotter import Snapshotter
 from end_detector import EndDetector
-from score_store import ScoreStore
+from high_scores import HighScoreStore
 import vm_types
 
 # ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ class PinMAMEPlayer:
         self.screenshotting = args.screenshotter
 
         logging.basicConfig(filename='videomode.log',
-                            filemode='w',
+                            filemode='a',
                             format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S',
                             level=logging.INFO)
@@ -106,7 +106,7 @@ class PinMAMEPlayer:
                 self.detector
             )
         self.selector = GameSelector(self.display, self.buttons)
-        self.scores   = ScoreStore(self.display)
+        self.scores   = HighScoreStore()
 
     def startup(self) -> None:
         self.log.info("Starting up")
@@ -124,13 +124,17 @@ class PinMAMEPlayer:
         self.startup()
         try:
             while True:
-                game = self.selector.run(self.snapshotting, self.screenshotting)
-                try:
-                    result = self.session.run(game)
-                except KeyboardInterrupt:
-                    continue
                 if not self.snapshotting and not self.screenshotting:
-                    self.scores.record(result)
+                    initials = self.selector.log_in()
+                while True:
+                    game = self.selector.run(self.scores, self.snapshotting, self.screenshotting)
+                    try:
+                        result = self.session.run(game)
+                    except KeyboardInterrupt:
+                        continue
+                    if not self.snapshotting and not self.screenshotting:
+                        self.selector.players.add_player(initials)
+                        self.scores.submit_score(result, initials)
         except KeyboardInterrupt:
             self.log.info("KeyboardInterrupt — exiting")
         finally:

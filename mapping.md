@@ -20,6 +20,63 @@
         7       e   m   u   C   K   S   !   (
         8       f   n   v   D   L   T   @   )
 
+## champion pub
+
+`h` coin door
+`pqrs` trough
+`a` start
+`i` launch...
+
+
+## cirqus voltaire
+
+`xyz` motor positions
+`pqrs|32,33,34,35` trough
+`h|22` coin door close
+`0` credit
+`a` start
+
+`48|D` left loop enter
+`15|c` left loop upper
+`46|B` trough upper
+`47|C` trough 
+
+## apollo 13
+
+        1   2   3   4   5   6   7   8   9
+
+1       0   8   g   o   w   E   M   U   #
+2       1   9   h   p   x   F   N   V   $
+3       2   a   i   q   y   G   O   W   %
+4       3   b   j   r   z   H   P   X   ^
+5       4   c   k   s   A   I   Q   Y   &
+6       5   d   l   t   B   J   R   Z   *
+7       6   e   m   u   C   K   S   !   (
+8       7   f   n   v   D   L   T   @   )
+
+`9abcd` trough
+`ghijklmn` 8-ball lock
+
+`2` start
+`9` trough exit
+
+`I` left orbit
+`J` right orbit
+
+`K` ball eject
+
+`!` left flipper
+`@` right flipper
+
+a  b  c  d  g  h  i  j  k  l  m  n  K
+11 12 13 14 17 18 19 20 21 22 23 24 47
+
+
+## cue ball wizard
+
+
+
+
 ## doctor who
 
 - `82|$` playfield glass!

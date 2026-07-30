@@ -2,212 +2,17 @@
 
 from __future__ import annotations
 
+from itertools import count
 import logging
 import os
 from pathlib import Path
 from typing import Optional
 
+from fonts import FONT
+
 class TextRender:
     _FONT_H = 7
 
-    # fmt: off
-    FONT = {
-        7: {
-            ' ': [0x00],
-            '!': [0x5F, 0x00],
-            '"': [0x03, 0x00, 0x03],
-            '#': [0x14, 0x7F, 0x14, 0x7F, 0x14],
-            '$': [0x24, 0x2A, 0x7F, 0x2A, 0x12],
-            '%': [0x23, 0x13, 0x08, 0x64, 0x62],
-            '&': [0x36, 0x49, 0x55, 0x22, 0x50],
-            "'": [0x03, 0x00],
-            '(': [0x1C, 0x22, 0x41],
-            ')': [0x41, 0x22, 0x1C],
-            '*': [0x14, 0x08, 0x3E, 0x08, 0x14],
-            '+': [0x08, 0x08, 0x3E, 0x08, 0x08],
-            ',': [0x40, 0x20],
-            '-': [0x08, 0x08, 0x08, 0x08],
-            '.': [0x60, 0x60],
-            '/': [0x20, 0x10, 0x08, 0x04, 0x02],
-            '0': [0x3E, 0x51, 0x49, 0x45, 0x3E],
-            '1': [0x42, 0x7F, 0x40],
-            '2': [0x62, 0x51, 0x49, 0x49, 0x46],
-            '3': [0x22, 0x49, 0x49, 0x49, 0x36],
-            '4': [0x18, 0x14, 0x12, 0x7F, 0x10],
-            '5': [0x2F, 0x49, 0x49, 0x49, 0x31],
-            '6': [0x3E, 0x49, 0x49, 0x49, 0x32],
-            '7': [0x01, 0x71, 0x09, 0x05, 0x03],
-            '8': [0x36, 0x49, 0x49, 0x49, 0x36],
-            '9': [0x26, 0x49, 0x49, 0x49, 0x3E],
-            ':': [0x6c, 0x6c],
-            ';': [0x40, 0x36],
-            '<': [0x08, 0x14, 0x22],
-            '=': [0x14, 0x14, 0x14, 0x14],
-            '>': [0x22, 0x14, 0x08],
-            '?': [0x02, 0x01, 0x59, 0x09, 0x06],
-            '@': [0x3E, 0x41, 0x5D, 0x55, 0x1E],
-            'A': [0x7E, 0x09, 0x09, 0x09, 0x7E],
-            'B': [0x7F, 0x49, 0x49, 0x49, 0x36],
-            'C': [0x3E, 0x41, 0x41, 0x41, 0x22],
-            'D': [0x7F, 0x41, 0x41, 0x22, 0x1C],
-            'E': [0x7F, 0x49, 0x49, 0x49, 0x41],
-            'F': [0x7F, 0x09, 0x09, 0x09, 0x01],
-            'G': [0x3E, 0x41, 0x49, 0x49, 0x7A],
-            'H': [0x7F, 0x08, 0x08, 0x08, 0x7F],
-            'I': [0x41, 0x7F, 0x41],
-            'J': [0x20, 0x40, 0x41, 0x3F, 0x01],
-            'K': [0x7F, 0x08, 0x14, 0x22, 0x41],
-            'L': [0x7F, 0x40, 0x40, 0x40, 0x40],
-            'M': [0x7F, 0x02, 0x0C, 0x02, 0x7F],
-            'N': [0x7F, 0x04, 0x08, 0x10, 0x7F],
-            'O': [0x3E, 0x41, 0x41, 0x41, 0x3E],
-            'P': [0x7F, 0x09, 0x09, 0x09, 0x06],
-            'Q': [0x3E, 0x41, 0x51, 0x21, 0x5E],
-            'R': [0x7F, 0x09, 0x19, 0x29, 0x46],
-            'S': [0x46, 0x49, 0x49, 0x49, 0x31],
-            'T': [0x01, 0x01, 0x7F, 0x01, 0x01],
-            'U': [0x3F, 0x40, 0x40, 0x40, 0x3F],
-            'V': [0x1F, 0x20, 0x40, 0x20, 0x1F],
-            'W': [0x7F, 0x20, 0x18, 0x20, 0x7F],
-            'X': [0x63, 0x14, 0x08, 0x14, 0x63],
-            'Y': [0x03, 0x04, 0x78, 0x04, 0x03],
-            'Z': [0x61, 0x51, 0x49, 0x45, 0x43],
-            '[': [0x7F, 0x41, 0x41],
-            '\\': [0x02, 0x04, 0x08, 0x10, 0x20],
-            ']': [0x41, 0x41, 0x7F],
-            '^': [0x04, 0x02, 0x01, 0x02, 0x04],
-            '_': [0x40, 0x40, 0x40, 0x40, 0x40],
-            '`': [0x01, 0x02],
-            'a': [0x20, 0x54, 0x54, 0x54, 0x78],
-            'b': [0x7F, 0x48, 0x44, 0x44, 0x38],
-            'c': [0x38, 0x44, 0x44, 0x44, 0x20],
-            'd': [0x38, 0x44, 0x44, 0x48, 0x7F],
-            'e': [0x38, 0x54, 0x54, 0x54, 0x18],
-            'f': [0x08, 0x7E, 0x09, 0x01, 0x02],
-            'g': [0x18, 0xA4, 0xA4, 0xA4, 0x7C],
-            'h': [0x7F, 0x08, 0x04, 0x04, 0x78],
-            'i': [0x7D],
-            'j': [0x80, 0x84, 0x7D],
-            'k': [0x7F, 0x10, 0x28, 0x44],
-            'l': [0x41, 0x7F, 0x40],
-            'm': [0x7C, 0x04, 0x18, 0x04, 0x78],
-            'n': [0x7C, 0x08, 0x04, 0x04, 0x78],
-            'o': [0x38, 0x44, 0x44, 0x44, 0x38],
-            'p': [0xFC, 0x24, 0x24, 0x24, 0x18],
-            'q': [0x18, 0x24, 0x24, 0x28, 0xFC],
-            'r': [0x7C, 0x08, 0x04, 0x04, 0x08],
-            's': [0x48, 0x54, 0x54, 0x54, 0x20],
-            't': [0x04, 0x3F, 0x44, 0x40, 0x20],
-            'u': [0x3C, 0x40, 0x40, 0x20, 0x7C],
-            'v': [0x1C, 0x20, 0x40, 0x20, 0x1C],
-            'w': [0x3C, 0x40, 0x30, 0x40, 0x3C],
-            'x': [0x44, 0x28, 0x10, 0x28, 0x44],
-            'y': [0x1C, 0xA0, 0xA0, 0xA0, 0x7C],
-            'z': [0x44, 0x64, 0x54, 0x4C, 0x44],
-            '{': [0x08, 0x36, 0x41],
-            '|': [0x7F],
-            '}': [0x41, 0x36, 0x08],
-            '~': [0x08, 0x04, 0x08, 0x10, 0x08],
-        },
-        5: {
-            ' ': [0x00],
-            '!': [0x17],
-            '"': [0x03, 0x00, 0x03],
-            '#': [0x0a, 0x1f, 0x0a, 0x1f, 0x0a],
-            '$': [0x16, 0x15, 0x1f, 0x15, 0x0d],
-            '%': [0x16, 0x0b, 0x04, 0x1a, 0x19],
-            '&': [0x1a, 0x15, 0x0a, 0x10],
-            "'": [0x03],
-            '(': [0x0e, 0x11],
-            ')': [0x11, 0x0e],
-            '*': [0x0a, 0x07, 0x0a],
-            '+': [0x04, 0x0e, 0x04],
-            ',': [0x10, 0x08],
-            '-': [0x04],
-            '.': [0x10],
-            '/': [0x18, 0x04, 0x03],
-            '0': [0x0e, 0x11, 0x11, 0x0e],
-            '1': [0x00, 0x12, 0x1f, 0x10],
-            '2': [0x19, 0x15, 0x15, 0x12],
-            '3': [0x15, 0x15, 0x15, 0x0a],
-            '4': [0x0f, 0x08, 0x1e, 0x08],
-            '5': [0x17, 0x15, 0x15, 0x09],
-            '6': [0x0e, 0x15, 0x15, 0x08],
-            '7': [0x01, 0x19, 0x05, 0x03],
-            '8': [0x0a, 0x15, 0x15, 0x0a],
-            '9': [0x02, 0x15, 0x15, 0x0e],
-            ':': [0x0a],
-            ';': [0x10, 0x0a],
-            '<': [0x04, 0x0a, 0x11],
-            '=': [0x0a, 0x0a, 0x0a],
-            '>': [0x11, 0x0a, 0x04],
-            '?': [0x01, 0x15, 0x02],
-            '@': [0x0e, 0x11, 0x17, 0x06],
-            'A': [0x1e, 0x05, 0x05, 0x1e],
-            'B': [0x1f, 0x15, 0x15, 0x0a],
-            'C': [0x0e, 0x11, 0x11, 0x0a],
-            'D': [0x1f, 0x11, 0x11, 0x0e],
-            'E': [0x1f, 0x15, 0x15, 0x11],
-            'F': [0x1f, 0x05, 0x05, 0x01],
-            'G': [0x0e, 0x11, 0x15, 0x1d],
-            'H': [0x1f, 0x04, 0x04, 0x1f],
-            'I': [0x11, 0x1f, 0x11],
-            'J': [0x09, 0x11, 0x1f, 0x01],
-            'K': [0x1f, 0x04, 0x0a, 0x11],
-            'L': [0x1f, 0x10, 0x10],
-            'M': [0x1f, 0x02, 0x04, 0x02, 0x1f],
-            'N': [0x1f, 0x02, 0x04, 0x08, 0x1f],
-            'O': [0x0e, 0x11, 0x11, 0x0e],
-            'P': [0x1f, 0x05, 0x05, 0x02],
-            'Q': [0x0e, 0x11, 0x19, 0x16],
-            'R': [0x1f, 0x05, 0x05, 0x1a],
-            'S': [0x12, 0x15, 0x09],
-            'T': [0x01, 0x1f, 0x01],
-            'U': [0x0f, 0x10, 0x10, 0x0f],
-            'V': [0x03, 0x0c, 0x10, 0x0c, 0x03],
-            'W': [0x0f, 0x10, 0x0c, 0x10, 0x0f],
-            'X': [0x11, 0x0a, 0x04, 0x0a, 0x11],
-            'Y': [0x01, 0x02, 0x1c, 0x02, 0x01],
-            'Z': [0x19, 0x15, 0x13],
-            '[': [0x1f, 0x11],
-           '\\': [0x03, 0x04, 0x18],
-            ']': [0x11, 0x1f],
-            '^': [0x02, 0x01, 0x02],
-            '_': [0x10, 0x10, 0x10],
-            '`': [0x01, 0x02],
-            'a': [0x0c, 0x12, 0x1e],
-            'b': [0x1f, 0x12, 0x0c],
-            'c': [0x0c, 0x12, 0x12],
-            'd': [0x0c, 0x12, 0x1f],
-            'e': [0x0c, 0x16, 0x16, 0x16],
-            'f': [0x04, 0x1e, 0x05],
-            'g': [0x16, 0x16, 0x0e],
-            'h': [0x1f, 0x04, 0x18],
-            'i': [0x1d],
-            'j': [0x10, 0x1d],
-            'k': [0x1f, 0x04, 0x1a],
-            'l': [0x0f, 0x10],
-            'm': [0x1e, 0x02, 0x1c, 0x02, 0x1c],
-            'n': [0x1e, 0x02, 0x1c],
-            'o': [0x0c, 0x12, 0x12, 0x0c],
-            'p': [0x1e, 0x0a, 0x04],
-            'q': [0x04, 0x0a, 0x1e],
-            'r': [0x1c, 0x02, 0x02],
-            's': [0x16, 0x16, 0x1a],
-            't': [0x02, 0x1f, 0x02],
-            'u': [0x0e, 0x10, 0x10, 0x0e],
-            'v': [0x0e, 0x10, 0x0e],
-            'w': [0x0e, 0x10, 0x0e, 0x10, 0x0e],
-            'x': [0x12, 0x0c, 0x12],
-            'y': [0x16, 0x14, 0x0e],
-            'z': [0x12, 0x1a, 0x16, 0x12],
-            '{': [0x04, 0x1b, 0x11],
-            '|': [0x1f],
-            '}': [0x11, 0x1b, 0x04],
-            '~': [0x04, 0x02, 0x04, 0x08, 0x04]
-        }
-    }
-    # fmt: on
 
     '''
     while True:
@@ -219,18 +24,11 @@ class TextRender:
         self.height = height
         self.depth = depth
         self.clear()
+        self.log = logging.getLogger('TextRender')
 
     def clear(self):
         self.frame = bytearray(self.width * self.height)
 
-    def add_lines(self, lines: str, highlight: bool=None):
-        for i, line in enumerate(lines, 1):
-            self.draw_text(
-                text = line,
-                line = i,
-                x = 0,
-                highlight = (highlight==i)
-            )
 # ---------------------------------------------------------------------------
     def draw_text(
         self,
@@ -238,13 +36,17 @@ class TextRender:
         y: int,
         x: int = 0,
         right: bool = False,
-        highlight: bool = False,
-        font_size: int = 7,
+        center: bool = False,
+        color: float = 3,
+        font: int = 7,
         box_x: Optional(int) = None,
         box_y: Optional(int) = None,
         box_r: Optional(int) = None,
         box_b: Optional(int) = None,
-        background: bool = False
+        background: bool = False,
+        outline: bool = False,
+        kerning: int = 1,
+        outline_color: int = 0
     ) -> bool:
         """
         Draw a line of text on the frame
@@ -254,7 +56,7 @@ class TextRender:
         text      : str of the text to be displayed
         y         : row of the line position
         x         : column to start from
-        highlight : whether to render the text at full brightness, or normal
+        color     : how bright (0-1) to render the text
         box_x, box_y, box_r, box_b : coordinates drawing is constrained to
 
         Returns
@@ -262,71 +64,102 @@ class TextRender:
         bool
             True if text overflowed, False if not
         """
-        # if highlight:
-        #     self.draw_text(text, line+1/8, x+1, right, False, box_x, box_y, box_r, box_b)
-        char_h = self._FONT_H + 1
-
+        
+        if outline:
+            self.draw_text(
+                text = text,
+                y = y-1,
+                x = x-1,
+                right = right,
+                center = center,
+                font = (font, 1),
+                color = outline_color,
+                kerning = kerning - 2
+            )
+        
         y0 = y
 
         box_x = max(0, box_x or 0)
-        box_y = max(0, box_y or 0)*char_h
+        box_y = box_y or 0
         box_r = min(self.width, box_r if box_r is not None else self.width)
-        box_b = min(self.height, box_b*char_h if box_b is not None else self.height)
+        box_b = min(self.height, box_b if box_b is not None else self.height)
 
-        if highlight:
-            intensity = 2 ** self.depth - 1
-        else:
-            intensity = 2 ** (self.depth-1) - 1
-
-        if right: text = text[::-1]
+        cols = []
+        i = 0
         for ch in text:
-            cols  = self._char_columns(ch, font_size=font_size)
-            if right: cols = reversed(cols)
-            for col_bits in cols:
-                if x < box_x:
-                    continue
-                if x >= box_r:
-                    continue
-                for row_i in range(char_h):
-                    y = y0 + row_i
-                    if y < box_y:
-                        continue
-                    if y >= box_b:
-                        continue
-                    if bool(col_bits & (1 << row_i)):
+            for col in self._char_columns(ch, font=font):
+                i += 1
+                cols.append((i, col))
+            i += kerning
+
+        start_x = x
+        if right:
+            start_x -= i
+        elif center:
+            start_x -= i // 2
+
+        for i, col_bits in cols:
+            x = start_x + i
+            if x < box_x:
+                continue
+            if x >= box_r:
+                continue
+            for row_i in count():
+                if not col_bits: break
+
+                y = y0 + row_i
+
+                if box_y <= y < box_b:
+                    if bool(col_bits & 1):
+                        if callable(color):
+                            intensity = color()
+                        else:
+                            intensity = color
                         self.frame[y * self.width + x] = intensity
                     elif background:
                         self.frame[y * self.width + x] = 0
-                if right:
-                    x -= 1
-                else:
-                    x += 1
-            if right:
-                x -= 1
-            else:
-                x += 1
+   
+                col_bits = col_bits >> 1
 
-    def _char_columns(self, ch: str, font_size: int=7) -> bytes:
+    def _char_columns(self, ch: str, font: int=7) -> bytes:
         """Return the 5 column bytes for a printable ASCII character."""
         try:
-            return self.FONT[font_size][ch]
+            font_d = FONT[font]
         except KeyError:
-            print(f'missing character: {ch}')
-            return self.FONT[font_size]['?']
+            self.log.error('font size %s not available in %s', font, list(FONT))
+            raise
+        try:
+            return font_d[ch]
+        except KeyError:
+            self.log.error(f'missing character: {ch}')
+            return font_d['?']
 
-    def invert(self, x:int, y:int, w:int, h:int):
-        r = x + w + 1
-        t = y + h + 1
+    def _box(self, x:int, y:int, w:int, h:int):
+        r = x + w
+        t = y + h
         x = min(max(0, x), self.width)
         y = min(max(0, y), self.height)
         r = min(max(0, r), self.width)
         t = min(max(0, t), self.height)
-        print('invert:', [x,y,r,t])
         for row_i in range(y, t):
             for col_i in range(x, r):
                 index = row_i * self.width + col_i
-                self.frame[index] = 3 - self.frame[index]
-                print(self.frame[y*self.width + x])
+                yield index
+
+    def invert(self, x:int, y:int, w:int, h:int):
+        for index in self._box(x, y, w, h):
+            self.frame[index] = (2**self.depth-1) - self.frame[index]
+
+    def box(self, x:int, y:int, w:int, h:int, color: float|callable):
+        for index in self._box(x, y, w, h):
+            if callable(color):
+                col = color()
+            else:
+                col = color
+            self.frame[index] = col
+
+    def image(self, data):
+        self.frame[:] = data
 
 # ---------------------------------------------------------------------------
 # CLI self-test
@@ -342,32 +175,16 @@ if __name__ == "__main__":
     text = TextRender(width=128, height=32, depth=2)
 
     text.clear()
-    text.add_lines(['Terminator 2', 'Theatre of Magic', 'Indiana Jones: The Pinball Adventure', 'Getaway: High Speed II'], highlight=1)
-    display.show_frame(text.frame)
-    time.sleep(2)
-
-    text.clear()
-    text.add_lines(['', "TWILIGHT ZONE", "SCORE: 1234560"])
-    display.show_frame(text.frame)
-    time.sleep(2)
-
-    text.clear()
-    text.add_lines([
-        'ABCDEFGHIJKLM',
-        'NOPQRSTUVWXYZ',
-        'abcdefghijklm',
-        'nopqrstuvwxyz'
-    ])
-    display.show_frame(text.frame)
-    time.sleep(2)
-
-    text.clear()
-    text.add_lines([
-        '!"#$%&\'()*`{}|~',
-        '+,-./:;<=>?@[]\\^_',
-        '0123456789'
-    ])
-    display.show_frame(text.frame)
-    time.sleep(2)
-
-    print("\nDone.")
+    for font_size in sorted(FONT):
+        text.clear()
+        for i, line in enumerate(['the quick brown fox', 'jumps over the lazy dog']):
+            text.draw_text(
+                text = line,
+                font = font_size,
+                x = 64,
+                center = True,
+                y = i*font_size,
+                color = 1
+            )
+        display.show_frame(text.frame)
+        time.sleep(2)
