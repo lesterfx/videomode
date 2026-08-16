@@ -92,7 +92,7 @@ class EndDetector:
                 return
             if self._config.trigger_solenoid is not None and solenoid != self._config.trigger_solenoid:
                 self.log.info(
-                    f"Ignore solenoid {solenoid} because is not trigget_solenoid {self._config.trigger_solenoid}"
+                    f"Ignore solenoid {solenoid} because is not trigger_solenoid {self._config.trigger_solenoid}"
                 )
                 return
             if bool(state) != bool(self._config.solenoid_trigger_state):

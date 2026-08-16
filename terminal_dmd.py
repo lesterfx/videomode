@@ -24,8 +24,6 @@ import time
 
 from pinmame._types import PinmameDisplayLayout
 
-width = 128
-height = 32
 depth = 2                                # bits per pixel (usually 2 or 4)
 
 
@@ -147,7 +145,9 @@ _DOT_OFF  = " "
 
 def render_ansi(
     frame: bytes | bytearray,
-    double_wide: bool = True
+    double_wide: bool,
+    width: int,
+    height: int
 ) -> list[str]:
     """
     Convert a raw DMD frame to ANSI-coloured terminal rows.
@@ -183,9 +183,14 @@ _last_print = time.monotonic()
 def print_ansi_frame(
     frame: bytes | bytearray,
     scroll_to_top: bool = False,
-    label_getter: Optional(callable) = None
+    label_getter: Optional(callable) = None,
+    width: Optional[int] = None,
+    height: Optional[int] = None
 ) -> None:
     """Print an ANSI-coloured frame """
+    if width is None or height is None:
+        raise AttributeError('Missing width and/or height')
+
     now = time.monotonic()
     # if now - _last_print < 1/10:
     #     return
@@ -199,9 +204,9 @@ def print_ansi_frame(
     else:
         print('\n\n\n', end='\r\n')
 
-    sep = ''.center(128*2, '-')
+    sep = ''.center(width*2, '-')
     print(f"+{sep}+", end='\r\n')
-    for row in render_ansi(frame, double_wide=True):
+    for row in render_ansi(frame, double_wide=True, width=width, height=height):
         print(f"│{row}│", end='\r\n')
 
     print(f"+{sep}+", end='\r\n')

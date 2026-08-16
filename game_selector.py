@@ -1,49 +1,36 @@
 #!/usr/bin/env python3
 
-import dataclasses
-from itertools import count
 import json
 import logging
 from operator import attrgetter, itemgetter
-from random import choice
-import string
-import time
+from text_to_dmd import RandomColor
 from typing import Optional
 
 from vm_types import GameEntry, GameParent, EndDetectorConfig
-from button import ButtonName, ButtonInput, ButtonEvent
+from button import ButtonInput, NavEvent
 from dmd_display import DMDDisplay
-from text_to_dmd import TextRender
-from players import PlayerStore
+from screens import Screen
 
 # ---------------------------------------------------------------------------
-# Phase 4 — Game selector UI (stub)
+# Phase 4 — Game selector UI
 # ---------------------------------------------------------------------------
 
-class GameSelector:
+class GameSelectScreen(Screen):
     """
     Displays the sorted game list on the DMD and handles navigation.
 
     Responsibilities:
       - Parse games.json into game objects
-      - Render scrollable list via DMDDisplay.show_text()
-      - Handle SCROLL_UP / SCROLL_DOWN / LUANCH from ButtonInput
-      - Return the selected GameEntry
-
-    Populated in Phase 4.
+      - Render scrollable list via DMDDisplay.show_frame()
+      - Handle LEFT / RIGHT / SELECT from ButtonInput.get_key_presses()
+      - Return the selected GameEntry (or None if BOTH was pressed — the
+        caller's cue to fall back to the login screen)
     """
 
     def __init__(self, display: DMDDisplay, buttons: ButtonInput) -> None:
-        self.log = logging.getLogger('GameSelector')
-        self.display = display
-        self.buttons = buttons
+        super().__init__(display, buttons)
         self._parents: list[GameParent] = []
         self._games: list[GameEntry] = []
-        self._scroll = [0, 0]
-        self._selected_index = 0
-        self.text = TextRender(width=128, height=32, depth=2)
-        self.players = PlayerStore()
-        self.initials = None
 
     def load_games(self, allow_no_snapshot: bool=False, only_without_screenshot: bool=False) -> None:
         self.screenshots = {key: bytes(int(ch) for ch in screenshot) for key, screenshot in json.load(open('screenshots.json')).items() if screenshot}
@@ -86,190 +73,51 @@ class GameSelector:
                 # self.log.info(f'{y} {game.name or "-"}')
                 y += 6 * len((game.name + ' ').splitlines())
 
-    def log_in(self):
-        SEPARATION = 31
-        users = []
-        users.append((0, 'guest'))
-        for i, initials in enumerate(self.players.get_players() + ['new']):
-            users.append((int(SEPARATION*(i+1.3)), initials))
-        wrap_width = users[-1][0] + SEPARATION + 10
-        self._selected_index = 0
-        self._scroll = [0, 100]
-
-        for move in self.get_key_presses():
-            self._selected_index += move
-            wrap_count, index = divmod(self._selected_index, len(users))
-            if self.animate_scroll_toward(wrap_width*wrap_count + users[index][0], 0):
-                need_render = True
-
-            self.text.clear()
-            self.text.box(0, 0, 128, 16, lambda:choice((1, 2)))
-            self.text.draw_text(
-                'Select player',
-                center = True,
-                x = 64,
-                y = 2-self._scroll[1],
-                font = 12,
-                color = 3,
-                outline = True,
-                kerning = 1
-            )
-            for i, (x, initials) in enumerate(users):
-                self.text.draw_text(
-                    initials,
-                    center = True,
-                    x = (int(64 + x - self._scroll[0]+wrap_width//4) % wrap_width) - wrap_width//4,
-                    y = 17 + self._scroll[1],
-                    font = 15,
-                    color = 3 if (i==index) else 1
-                )
-            self.show()
-        
-        self._scroll = [0, 0]
-        initials = users[self._selected_index % len(users)][1]
-        if initials == 'new':
-            initials = self.get_initials('NEW PLAYER')
-
-        self._selected_index = 0
-        self.initials = initials
-
-    def get_initials(self, title):
-        selected_row = 0
-        selected_col = 0
-        cols = 7
-        options = []
-        for i, ch in enumerate(string.ascii_uppercase + '\r\t'):
-            row, col = divmod(i, cols)
-            option = {}
-            options.append(option)
-            option['ch'] = ch
-            option['x'] = 15 - row*5 + col*7
-            option['y'] = 1 + row*6 + col
-            option['i'] = i
-            if ch == '\t':
-                option['x'] += 1
-                option['y'] += 1
-
-        initials = ''
-
-        def draw():
-            self.text.clear()
-
-            for option in options:
-                if option['i'] == selected_index:
-                    color = 0
-                    outline = 1
-                    outline_color = 3
-                else:
-                    color = 2
-                    outline = 0
-                    outline_color = 0
-
-                self.text.draw_text(
-                    text = option['ch'],
-                    y = option['y'],
-                    x = option['x'],
-                    font = 5,
-                    color = color,
-                    outline = outline,
-                    outline_color = outline_color
-                )
-            
-            if title:
-                self.text.draw_text(
-                    text = title,
-                    y = 3,
-                    x = 97,
-                    font = 10,
-                    center = True,
-                    color = 2
-                )
-
-            for i, x in enumerate([85, 97, 109]):
-                self.text.box(
-                    x = x-4,
-                    y = 26,
-                    w = 9,
-                    h = 2,
-                    color = 2
-                )
-                if i == len(initials):
-                    text = options[selected_index]['ch']
-                elif i < len(initials):
-                    text = initials[i]
-                else:
-                    text = ''
-                if text in '\t\r':
-                    text = ''
-                self.text.draw_text(
-                    text = text,
-                    y = 14,
-                    x = x,
-                    center = True,
-                    font = 15,
-                    color = 3
-                )
-            self.show()
-
-        while True:
-            for move in self.get_key_presses():
-                if len(initials) < 3:
-                    if move == 1:
-                        selected_col = (selected_col + 1) % cols
-                        if (selected_col + selected_row*cols) >= len(options):
-                            selected_col = 0
-                    elif move == -1:
-                        selected_row += 1
-                        if (selected_col + selected_row*cols) >= len(options):
-                            selected_row = 0
-                elif move:
-                    selected_row = 3
-                    selected_col = 11-selected_col
-                selected_index = selected_col + selected_row*cols
-                draw()
-            ch = options[selected_index]['ch']
-            if ch == '\r':
-                initials = initials[:-1]
-            elif ch == '\t':
+    @staticmethod
+    def _format_game(score):
+        unit = ''
+        for new_unit in 'KMB':
+            new_score, remainder = divmod(score, 1000)
+            if remainder:
                 break
             else:
-                initials += ch
-            if len(initials) == 3:
-                selected_row = 3
-                selected_col = 6
+                unit = new_unit
+                score = new_score
+        return f'{score:,}{unit}'
 
-        return initials or 'guest'
-
-    def show(self):
-        self.display.show_frame(self.text.frame)
-
-    def run(self, scores, snapshotter=False, screenshotter=False) -> GameEntry:
+    def run(
+        self,
+        scores,
+        initials: Optional[str],
+        snapshotter: bool = False,
+        screenshotter: bool = False,
+    ) -> Optional[GameEntry]:
         """
         Block until the user selects a game.
-        Returns the chosen GameEntry.
+
+        Returns the chosen GameEntry, or None if the person chorded both
+        flippers (BOTH) — the caller's cue to return to the login screen.
         """
 
-        self.log.info('logged in as %s', self.initials)
+        self.log.info('selecting for %s', initials or 'guest')
 
-        if snapshotter:
+        self.snapshotter = snapshotter
+        self.screenshotter = screenshotter
+        if self.snapshotter:
             title = 'MAKING ROM SNAPSHOT'
-        elif screenshotter:
-            title =  'SAVING SCREENSHOT'
+        elif self.screenshotter:
+            title = 'SAVING SCREENSHOT'
         else:
-            title = f'{self.initials} SELECT YOUR GAME'
+            title = f'{initials or "guest"} SELECT YOUR GAME'
 
-        if self.initials == 'guest':
-            initials = None
-        else:
-            initials = self.initials
-        scores_for_player = scores.scores_for_player(initials)
+        scores_for_player = scores.scores_for_player(None if initials == 'guest' else initials)
 
         for game in self._games:
             game_score = None
             if score := scores_for_player.get(game.unique_name):
                 game_score = score.score
                 self.log.info('high score for %s is %s', game.unique_name, game_score)
-                game.high_score = f'{game_score:,}'
+                game.high_score = self._format_game(game_score)
                 game.is_high_score = score.is_high_score
             else:
                 self.log.info('no high score for %s in %s', game.unique_name, scores_for_player)
@@ -277,75 +125,30 @@ class GameSelector:
                 game.is_high_score = False
         self.log.info(scores_for_player)
 
-        need_render = True
-        for move in self.get_key_presses():
-            if True:
-                self.draw_frame(title)
-                need_render = False
+        self._selected_index = 0
 
-            need_render = self.scroll_by(move, max=len(self._games))
-            if self.animate_scroll_toward(0, self._games[self._selected_index].y):
-                need_render = True
+        for event in self.buttons.get_key_presses():
+            if event is NavEvent.BOTH:
+                self.log.info('backing out of game selector')
+                return None
+            if event is NavEvent.SELECT:
+                break
+
+            self.draw_frame(title)
+
+            if event is NavEvent.LEFT:
+                move = -1
+            elif event is NavEvent.RIGHT:
+                move = 1
+            else:
+                move = 0
+            self.scroll_by(move, max=len(self._games))
+            self.animate_scroll_toward(0, self._games[self._selected_index].y)
 
         selected_game = self._games[self._selected_index]
         self.draw_loading(selected_game)
 
         return selected_game
-
-    def scroll_by(self, move: int, max: int) -> bool:
-        if move == -1 and self._selected_index > 0:
-            self._selected_index += move
-            return True
-        elif move == 1 and self._selected_index < max - 1:
-            self._selected_index += move
-            return True
-        return False
-
-    def animate_scroll_toward(self, x, y) -> bool:
-        xy = x,y
-        moved = False
-        for i in range(2):
-            if self._scroll[i] != xy[i]:
-                diff = (self._scroll[i]-xy[i]) // 2
-                if abs(diff) >= 1:
-                    self._scroll[i] -= int(diff)
-                else:
-                    self._scroll[i] = xy[i]
-
-                if abs(self._scroll[i]-xy[i]) < 1: self._scroll[i] = xy[i]
-                moved = True
-        return moved
-
-    def get_key_presses(self) -> int:
-        pressed = []
-        pressed_at = time.monotonic()
-
-        while True:
-            move = 0
-            now = time.monotonic()
-            event = self.buttons.poll(timeout=0.1)
-            if event:
-                if event.pressed:
-                    pressed.append(event.button)
-                    pressed_at = now
-                else:
-                    if event.button in pressed:
-                        pressed.remove(event.button)
-            if pressed and now >= pressed_at + .3:
-                pressed_at = now
-                button = pressed.pop(0)
-                event = ButtonEvent(button, True)
-                pressed.append(button)
-            if event and event.pressed:
-                if event.button is ButtonName.LEFT_FLIPPER:
-                    move -= 1
-                elif event.button is ButtonName.RIGHT_FLIPPER:
-                    move += 1
-                elif event.button is ButtonName.LAUNCH:
-                    break
-                else:
-                    self.log.error('unexpected event', event)
-            yield move
 
     def draw_loading(self, game):
         if screenshot := self.screenshots.get(game.parent.rom):
@@ -410,31 +213,20 @@ class GameSelector:
                         color = color,
                         outline = True
                     )
-                # if game.initials:
-                #     self.text.draw_text(
-                #         text = str(game.initials),
-                #         y = game.y - self._scroll[1] + OFFSET,
-                #         right = True,
-                #         x = 127,
-                #         # box_y = y,
-                #         # box_b = details_end-1,
-                #         font = 5,
-                #         color = color
-                #     )
-                if game.is_high_score:
-                    col = lambda:choice((2, color))
-                else:
-                    col = color
-                self.text.draw_text(
-                    text = str(game.high_score),
-                    y = game.y - self._scroll[1] + OFFSET,
-                    right = True,
-                    x = 128,
-                    box_y = box_y,
-                    # box_b = details_end-1,
-                    font = 5,
-                    color = col
-                )
+                if not self.snapshotter and not self.screenshotter:
+                    if game.is_high_score:
+                        col = RandomColor(2, color)
+                    else:
+                        col = color
+                    self.text.draw_text(
+                        text = str(game.high_score),
+                        y = game.y - self._scroll[1] + OFFSET,
+                        right = True,
+                        x = 128,
+                        box_y = box_y,
+                        font = 5,
+                        color = col
+                    )
             for i, line in enumerate(parent.name.splitlines()):
                 self.text.draw_text(
                     text = line,
@@ -461,4 +253,3 @@ class GameSelector:
             )
 
         self.show()
-

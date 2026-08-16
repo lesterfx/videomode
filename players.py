@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 
-DEFAULT_PLAYERS_PATH = Path(os.path.dirname(__file__)) / 'scores.json'
+DEFAULT_PLAYERS_PATH = Path(os.path.dirname(__file__)) / 'players.json'
 
 _MAX_INITIALS_LEN = 3
 

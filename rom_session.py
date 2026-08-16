@@ -58,8 +58,8 @@ class VideoModeSession:
             or score=None in snapshotter mode.
         """
         self.log.info('disabling dmd')
-        self.pinmame.dmd_callback = self.display.show_frame
-        # self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
+        # self.pinmame.dmd_callback = self.display.show_frame
+        self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
         self.pinmame.load_game(game.parent.rom)
 
         self.detector.reset(game.parent.end_detector_config, active=False)
@@ -127,6 +127,9 @@ class VideoModeSession:
         except:
             self.pinmame.stop()
             raise
+
+        self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
+        self.display.clear()
 
         try:
             while time.monotonic() < end_time + 5:

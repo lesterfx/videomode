@@ -55,9 +55,7 @@ from terminal_dmd import print_frame
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
- 
-DMD_WIDTH:  int  = 128
-DMD_HEIGHT: int  = 32
+
  
 # Force terminal rendering even on hardware-capable machines
 DMD_TO_TERMINAL: bool = bool(int(os.environ.get("DMD_TO_TERMINAL", "0")))
@@ -113,8 +111,8 @@ class DMDDisplay:
  
     def __init__(
         self,
-        width:         int            = DMD_WIDTH,
-        height:        int            = DMD_HEIGHT,
+        width:         int            ,
+        height:        int            ,
         terminal_mode: Optional[bool] = None,
         label:         str            = "",
     ) -> None:
@@ -175,7 +173,7 @@ class DMDDisplay:
             self.stack.append(frame)
 
         if self._use_terminal:
-            print_frame(frame, self.shown, self.label_getter)
+            print_frame(frame, self.shown, self.label_getter, width=self.width, height=self.height)
             self.shown = True
         else:
             self._push_to_matrix(frame)

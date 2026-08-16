@@ -8,7 +8,7 @@ Architecture overview:
   Phase 1: PinMAMEBridge    — libpinmame.so ctypes wrapper
   Phase 2: DMDDisplay       — physical DMD hardware driver
   Phase 3: ButtonInput      — GPIO button event loop
-  Phase 4: GameSelector     — game list UI on DMD
+  Phase 4: PlayerLoginScreen / GameSelectScreen — DMD menu screens
   Phase 5: (offline tooling)— snapshot creation, not imported here
   Phase 6: VideoModeSession — load snapshot, run emulation, pass input
   Phase 7: EndDetector      — poll PinMAME state for video mode end
@@ -19,16 +19,28 @@ Button mapping (physical → logical):
   GPIO_PIN_LEFT  → LEFT_FLIPPER   (left flipper)
   GPIO_PIN_RIGHT → RIGHT_FLIPPER  (right flipper)
   GPIO_PIN_LAUNCH  → LAUNCH       (launch / select)
+
+Login/selection flow:
+  PinMAMEPlayer owns the PlayerStore directly (it's shared state that
+  outlives any one screen) and hands it to PlayerLoginScreen, which owns
+  InitialsEntryScreen internally as an implementation detail of "logging
+  in". A LoginSession context manager scopes the `initials` value for a
+  play session; from GameSelectScreen, chording both flippers (NavEvent.BOTH)
+  returns None from run(), which is PinMAMEPlayer's cue to end the inner
+  play loop and return to the login screen.
 """
 
 import argparse
+import contextlib
 import logging
 from pathlib import Path
 
 from bridge import PinMAMEBridge
 from button import ButtonEvent, ButtonInput
 from dmd_display import DMDDisplay
-from game_selector import GameSelector
+from game_selector import GameSelectScreen
+from login import PlayerLoginScreen, LoginSession
+from players import PlayerStore
 from rom_session import VideoModeSession
 from snapshotter import Snapshotter
 from end_detector import EndDetector
@@ -69,10 +81,11 @@ class PinMAMEPlayer:
 
     Boot sequence:
       1. Initialise all subsystems
-      2. Show game selector → user picks a game
-      3. Run video mode session
-      4. Record score, show result
-      5. Return to game selector (loop forever)
+      2. Log in (skipped in snapshotter/screenshotter mode) → initials
+      3. Show game selector → user picks a game, or backs out to re-login
+      4. Run video mode session
+      5. Record score, show result
+      6. Loop back to game selector (same login), until BOTH backs out
     """
 
     def __init__(self) -> None:
@@ -88,7 +101,7 @@ class PinMAMEPlayer:
         self.log = logging.getLogger("PinMAMEPlayer")
 
         self.pinmame  = PinMAMEBridge()
-        self.display  = DMDDisplay()
+        self.display  = DMDDisplay(width=DMD_WIDTH, height=DMD_HEIGHT)
         self.buttons  = ButtonInput()
         self.detector = EndDetector(self.pinmame)
         if self.snapshotting or self.screenshotting:
@@ -105,14 +118,17 @@ class PinMAMEPlayer:
                 self.buttons,
                 self.detector
             )
-        self.selector = GameSelector(self.display, self.buttons)
-        self.scores   = HighScoreStore()
+
+        self.players = PlayerStore()
+        self.login = PlayerLoginScreen(self.display, self.buttons, self.players)
+        self.game_select = GameSelectScreen(self.display, self.buttons)
+        self.scores = HighScoreStore()
 
     def startup(self) -> None:
         self.log.info("Starting up")
         self.pinmame.connect()
         self.buttons.start()   # events queued internally; callers use poll()
-        self.selector.load_games(self.snapshotting or self.screenshotting, self.screenshotting)
+        self.game_select.load_games(self.snapshotting or self.screenshotting, self.screenshotting)
 
     def shutdown(self) -> None:
         self.log.info("Shutting down")
@@ -124,17 +140,37 @@ class PinMAMEPlayer:
         self.startup()
         try:
             while True:
-                if not self.snapshotting and not self.screenshotting:
-                    initials = self.selector.log_in()
-                while True:
-                    game = self.selector.run(self.scores, self.snapshotting, self.screenshotting)
-                    try:
-                        result = self.session.run(game)
-                    except KeyboardInterrupt:
-                        continue
-                    if not self.snapshotting and not self.screenshotting:
-                        self.selector.players.add_player(initials)
+                if self.snapshotting or self.screenshotting:
+                    login_ctx = contextlib.nullcontext(None)
+                else:
+                    login_ctx = LoginSession(self.login)
+
+                with login_ctx as initials:
+                    while True:
+                        game = self.game_select.run(
+                            self.scores, initials, self.snapshotting, self.screenshotting
+                        )
+                        if game is None:
+                            # BOTH was pressed on the game list — back out
+                            # to the login screen for a fresh initials pick.
+                            break
+                        try:
+                            result = self.session.run(game)
+                        except KeyboardInterrupt:
+                            continue
+                        if self.snapshotting or self.screenshotting:
+                            self.log.info('no player handling while snapshotting or screenshotting')
+                            continue
+                        if initials == 'guest':
+                            self.log.info('no player handling for guest')
+                            continue
+
+                        # Only bump recency once the player has actually
+                        # played something — logging in and backing out
+                        # immediately shouldn't move them to the top.
+                        self.players.add_player(initials)
                         self.scores.submit_score(result, initials)
+
         except KeyboardInterrupt:
             self.log.info("KeyboardInterrupt — exiting")
         finally:

@@ -6,9 +6,18 @@ from itertools import count
 import logging
 import os
 from pathlib import Path
+from random import randint
 from typing import Optional
 
 from fonts import FONT
+
+class RandomColor:
+    def __init__(self, minval: int, maxval: int):
+        self.minval = min(minval, maxval)
+        self.maxval = max(minval, maxval)
+
+    def __call__(self):
+        return randint(self.minval, self.maxval)
 
 class TextRender:
     _FONT_H = 7
@@ -37,7 +46,7 @@ class TextRender:
         x: int = 0,
         right: bool = False,
         center: bool = False,
-        color: float = 3,
+        color: int|RandomColor = 3,
         font: int = 7,
         box_x: Optional(int) = None,
         box_y: Optional(int) = None,
@@ -46,7 +55,7 @@ class TextRender:
         background: bool = False,
         outline: bool = False,
         kerning: int = 1,
-        outline_color: int = 0
+        outline_color: int|RandomColor = 0
     ) -> bool:
         """
         Draw a line of text on the frame
@@ -150,7 +159,7 @@ class TextRender:
         for index in self._box(x, y, w, h):
             self.frame[index] = (2**self.depth-1) - self.frame[index]
 
-    def box(self, x:int, y:int, w:int, h:int, color: float|callable):
+    def box(self, x:int, y:int, w:int, h:int, color: float|RandomColor):
         for index in self._box(x, y, w, h):
             if callable(color):
                 col = color()

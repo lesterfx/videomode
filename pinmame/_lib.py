@@ -76,6 +76,7 @@ def _find_libpinmame(hint: Optional[str] = None) -> str:
     system = platform.system()
     if system == "Linux":
         candidates += [
+            Path.home() / "pinmame" / "build" / "libpinmame.so",
             "/usr/lib/libpinmame.so",
             "/usr/local/lib/libpinmame.so",
             str(Path.home() / ".pinmame" / "libpinmame.so"),
@@ -83,6 +84,7 @@ def _find_libpinmame(hint: Optional[str] = None) -> str:
         ]
     elif system == "Darwin":
         candidates += [
+            Path.home() / "pinmame" / "build" / "libpinmame.dylib",
             "/usr/local/lib/libpinmame.dylib",
             str(Path.home() / ".pinmame" / "libpinmame.dylib"),
             "./libpinmame.dylib",
@@ -96,13 +98,6 @@ def _find_libpinmame(hint: Optional[str] = None) -> str:
     for path in candidates:
         if path and Path(path).exists():
             return path
-        # For bare names (no path separator) let the OS find them
-        if path and os.sep not in path and "." in path:
-            try:
-                ctypes.CDLL(path)  # probe
-                return path
-            except OSError:
-                pass
 
     raise OSError(
         "libpinmame shared library not found.\n"

@@ -24,10 +24,39 @@ GPIO_PIN_LAUNCH   = 7   # launch button → LAUNCH
 #:   2. _last_press guard    — catches rapid repeat presses that slip through
 DEBOUNCE_S = 0.03   # 50 ms; raise to ~0.08 if double-fires occur; lower to ~0.03 if missed
 
+#: How long a flipper must be held before get_key_presses() re-fires it as a
+#: fresh press, so holding a flipper down keeps scrolling a menu.
+REPEAT_INTERVAL_S = 0.3
+
 class ButtonName(Enum):
     LEFT_FLIPPER   = auto()
     RIGHT_FLIPPER  = auto()
     LAUNCH         = auto()
+
+
+class NavEvent(Enum):
+    """
+    Menu-navigation signal produced by ButtonInput.get_key_presses().
+
+    NONE   — nothing changed on this tick (still useful to callers that
+             redraw/animate every tick regardless of input)
+    LEFT   — left flipper pressed (or held past REPEAT_INTERVAL_S)
+    RIGHT  — right flipper pressed (or held past REPEAT_INTERVAL_S)
+    SELECT — launch button pressed; terminal — get_key_presses() returns
+             after yielding this once
+    BOTH   — left and right flippers are held down at the same time;
+             terminal — get_key_presses() returns after yielding this once
+
+    BOTH only reports that the chord happened. What it *means* — back,
+    cancel, or nothing at all — is entirely up to the caller; ButtonInput
+    has no opinion about menu semantics.
+    """
+    NONE   = auto()
+    LEFT   = auto()
+    RIGHT  = auto()
+    SELECT = auto()
+    BOTH   = auto()
+
 
 @dataclass(frozen=True)
 class ButtonEvent:
@@ -61,7 +90,9 @@ class ButtonInput:
     On non-Pi hardware gpiozero will raise an error; the class falls back to a
     stdin-driven stub so the rest of the stack can be tested on a desktop. The
     stub cannot detect real key-up over a terminal, so each keypress there is
-    treated as an instantaneous press+release pair — it can't simulate holds.
+    treated as an instantaneous press+release pair — it can't simulate holds,
+    which also means get_key_presses()'s NavEvent.BOTH chord can't be
+    exercised from the stub; it requires real, overlapping GPIO holds.
 
     GPIO wiring (BCM, active-low, internal pull-up):
       pin_left  (default 25) → left flipper  → SCROLL_UP
@@ -134,6 +165,65 @@ class ButtonInput:
     def is_held(self, button: ButtonName) -> bool:
         """True if *button* is currently pressed down."""
         return self._held[button]
+
+    def get_key_presses(self):
+        """
+        Generator for menu/list navigation.
+
+        Yields a NavEvent on every poll tick — NavEvent.NONE when nothing
+        changed, otherwise LEFT/RIGHT for the flippers. A held flipper
+        re-fires every REPEAT_INTERVAL_S so callers get hold-to-repeat
+        scrolling without extra bookkeeping.
+
+        Terminates by yielding one of two terminal signals and then
+        returning (the generator is exhausted — a subsequent `next()`
+        raises StopIteration, which ends a `for event in ...:` loop
+        naturally):
+
+          NavEvent.SELECT — the launch button was pressed
+          NavEvent.BOTH   — both flippers are currently held down
+
+        Callers are responsible for deciding what SELECT/BOTH mean in
+        context (e.g. "confirm" / "back") — this method only reports
+        what the hardware is doing.
+        """
+        pressed: list[ButtonName] = []
+        pressed_at = time.monotonic()
+
+        while True:
+            now = time.monotonic()
+            event = self.poll(timeout=0.1)
+            if event:
+                if event.pressed:
+                    if event.button not in pressed:
+                        pressed.append(event.button)
+                    pressed_at = now
+                else:
+                    if event.button in pressed:
+                        pressed.remove(event.button)
+
+            if pressed and now >= pressed_at + REPEAT_INTERVAL_S:
+                pressed_at = now
+                button = pressed.pop(0)
+                pressed.append(button)
+                event = ButtonEvent(button, True)
+
+            if self.is_held(ButtonName.LEFT_FLIPPER) and self.is_held(ButtonName.RIGHT_FLIPPER):
+                yield NavEvent.BOTH
+
+            if event and event.pressed:
+                if event.button is ButtonName.LEFT_FLIPPER:
+                    yield NavEvent.LEFT
+                elif event.button is ButtonName.RIGHT_FLIPPER:
+                    yield NavEvent.RIGHT
+                elif event.button is ButtonName.LAUNCH:
+                    yield NavEvent.SELECT
+                    return
+                else:
+                    self._log.error('unexpected event: %s', event)
+                    yield NavEvent.NONE
+            else:
+                yield NavEvent.NONE
 
     def stop(self) -> None:
         """Release GPIO resources."""

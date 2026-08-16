@@ -20,6 +20,24 @@
         7       e   m   u   C   K   S   !   (
         8       f   n   v   D   L   T   @   )
 
+## batman forever
+
+        1   2   3   4   5   6   7   8   9
+
+1       0   8   g   o   w   E   M   U   #
+2       1   9   h   p   x   F   N   V   $
+3       2   a   i   q   y   G   O   W   %
+4       3   b   j   r   z   H   P   X   ^
+5       4   c   k   s   A   I   Q   Y   &
+6       5   d   l   t   B   J   R   Z   *
+7       6   e   m   u   C   K   S   !   (
+8       7   f   n   v   D   L   T   @   )
+
+`abcd` trough
+`2` start
+`a` untrough
+`f` shooter lane
+
 ## champion pub
 
 `h` coin door
@@ -40,6 +58,7 @@
 `15|c` left loop upper
 `46|B` trough upper
 `47|C` trough 
+switches:                  22,33,34,35,46
 
 ## apollo 13
 

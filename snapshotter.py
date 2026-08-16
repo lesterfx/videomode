@@ -99,6 +99,7 @@ class Snapshotter:
         self.display  = display
         self.buttons  = buttons
         self.screenshotting = screenshotting
+        self.display.screenshotting = screenshotting
         self.log      = logging.getLogger("Snapshotter")
 
     # ------------------------------------------------------------------
