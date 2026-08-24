@@ -32,7 +32,7 @@ from __future__ import annotations
 from collections import deque
 import logging
 import os
-from typing import Optional
+from typing import Callable, Optional
  
 # ---------------------------------------------------------------------------
 # Optional hardware import — graceful fallback
@@ -122,7 +122,7 @@ class DMDDisplay:
         self.log    = logging.getLogger('DMDDisplay')
 
         self.shown = False
-        self.label_getter = None
+        self.label_getter: Optional[Callable] = None
 
         self.screenshotting = False
         self.stack = deque(maxlen=50)
@@ -147,7 +147,7 @@ class DMDDisplay:
     # Public API
     # ------------------------------------------------------------------
  
-    def show_frame(self, frame: bytes, layout=None) -> None:
+    def show_frame(self, frame: bytearray|bytes, layout=None) -> None:
         """
         Push a raw pixel buffer to the display.
  
@@ -186,7 +186,8 @@ class DMDDisplay:
         """Release hardware resources."""
         if not self._use_terminal and self._matrix is not None:
             self.log.info("DMDDisplay shutdown")
-            self._canvas.Clear()
+            if self._canvas:
+                self._canvas.Clear()
             self._matrix.SwapOnVSync(self._canvas)
             self._matrix = None
             self._canvas  = None
@@ -209,20 +210,22 @@ class DMDDisplay:
         )
         return matrix, canvas
  
-    def _push_to_matrix(self, frame: bytes) -> None:
+    def _push_to_matrix(self, frame: bytearray|bytes) -> None:
         """Write pixel buffer to the LED matrix canvas and flip."""
         canvas = self._canvas
-        canvas.Clear()
-        for y in range(self.height):
-            row_off = y * self.width
-            for x in range(self.width):
-                intensity = frame[row_off + x] & 0x0F
-                r, g, b   = _RGB_LUT[intensity]
-                canvas.SetPixel(x, y, r, g, b)
+        if not self._matrix: return
+        if canvas:
+            canvas.Clear()
+            for y in range(self.height):
+                row_off = y * self.width
+                for x in range(self.width):
+                    intensity = frame[row_off + x] & 0x0F
+                    r, g, b   = _RGB_LUT[intensity]
+                    canvas.SetPixel(x, y, r, g, b)
         self._canvas = self._matrix.SwapOnVSync(canvas)
  
  
-    def _resample(self, frame: bytes, src_w: int, src_h: int) -> bytes:
+    def _resample(self, frame: bytearray|bytes, src_w: int, src_h: int) -> bytes:
         """
         Scale a frame from (src_w, src_h) down to fit the panel while
         preserving its aspect ratio, then center it on the panel with black
@@ -323,7 +326,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
  
-    display = DMDDisplay(terminal_mode=True, label="SMOKE TEST")
+    display = DMDDisplay(terminal_mode=True, label="SMOKE TEST", width=128, height=32)
  
     print("=== gradient ===")
     display.show_frame(make_test_frame(display.width, display.height))

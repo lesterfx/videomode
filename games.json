@@ -2,14 +2,14 @@
     {
         "name": "Apollo 13",
         "rom": "apollo13",
-        "switch_matrix_indexes": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72],
+        "platform": "sega",
         "active_switches": [11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 47],
         "left_flipper_switch": 63,
         "right_flipper_switch": 64,
         "launch_switch": 9,
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -26,7 +26,7 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -35,34 +35,39 @@
         "rom": "baywatch",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
     {
         "name": "Batman Forever",
         "rom": "batmanf",
+        "platform": "sega",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
     {
         "name": "Black Rose",
         "rom": "br_l4",
+        "left_flipper_switch": 114,
+        "right_flipper_switch": 112,
+        "launch_switch": 34,
+        "active_switches": [16, 17, 18, 22, 55],
         "videomodes": [
             {
-                "name": "Swimming",
-                "snapshot_index": null
+                "name": "Walk the Plank",
+                "ready": true
             },
             {
-                "name": "Swinging",
-                "snapshot_index": null
+                "name": "Swing from Riggings",
+                "ready": true
             },
             {
                 "name": "Knife Throwing",
-                "snapshot_index": null
+                "ready": true
             }
         ]
     },
@@ -79,7 +84,7 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -96,7 +101,7 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -112,12 +117,12 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
     {
-        "name": "Creature from the Black\nLagoon",
+        "name": "Creature from Black Lagoon",
         "rom": "cftbl_l2",
         "active_switches": [57, 34],
         "left_flipper_switch": 114,
@@ -129,16 +134,17 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
     {
         "name": "Cue Ball Wizard",
         "rom": "cueball",
+        "platform": "gottlieb",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -155,7 +161,7 @@
         "rom": "cv_14",
         "videomodes": [
             {
-                "snapshot_index": 1,
+                "ready": true,
                 "notes": "it seems to be set up right, but after loading for some time it ends up rebooting the game"
             }
         ]
@@ -173,7 +179,7 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -182,7 +188,7 @@
         "rom": "elvis",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -199,7 +205,7 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -217,7 +223,7 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -226,7 +232,7 @@
         "rom": "gnr_300",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -235,28 +241,34 @@
         "rom": "harl_a30",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
     {
-        "name": "Indiana Jones: The Pinball\nAdventure",
+        "name": "Indiana Jones",
         "rom": "ij_l7",
         "left_flipper_switch": 0,
         "right_flipper_switch": 0,
         "launch_switch": 0,
+        "active_switches": [22, 31, 82, 83, 84, 85, 86],
+        "end_detector_config": {
+            "grace_period_seconds": 12,
+            "solenoid_trigger_state": true,
+            "trigger_solenoid": 8
+        },
         "videomodes": [
             {
                 "name": "Choose Wisely",
-                "snapshot_index": null
+                "ready": true
             },
             {
-                "name": "Escape in the\nMine Cart",
-                "snapshot_index": null
+                "name": "Mine Cart",
+                "ready": true
             },
             {
                 "name": "Ravens Bar",
-                "snapshot_index": null
+                "ready": true
             }
         ]
     },
@@ -265,7 +277,7 @@
         "rom": "i500_11r",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -274,7 +286,7 @@
         "rom": "jm_12r",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -284,11 +296,11 @@
         "videomodes": [
             {
                 "name": "Run from Spike",
-                "snapshot_index": null
+                "ready": false
             },
             {
                 "name": "Save the Girl",
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -297,43 +309,57 @@
         "rom": "lw3_208",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
     {
         "name": "Medieval Madness",
         "rom": "mm_109",
+        "active_switches": [22, 33, 34, 35, 28],
+        "left_flipper_switch": 114,
+        "right_flipper_switch": 112,
+        "launch_switch": 0,
+        "end_detector_config": {
+            "trigger_solenoid": 31
+        },
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": true
             }
         ]
     },
     {
-        "name": "No Fear: Dangerous\nSports",
+        "name": "No Fear: Dangerous Sports",
         "rom": "nf_23x",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
     {
-        "name": "Star Trek 25th\nAnniversary Edition",
+        "name": "Star Trek 25th Anniversary",
         "rom": "trek_201",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
     {
-        "name": "Star Trek: The Next\nGeneration",
+        "name": "Star Trek: Next Generation",
         "rom": "sttng_l7",
+        "active_switches": [22, 45, 62, 63, 64, 65, 66],
+        "left_flipper_switch": 114,
+        "right_flipper_switch": 112,
+        "launch_switch": 12,
+        "end_detector_config": {
+            "ignored_solenoids": [54]
+        },
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": true
             }
         ]
     },
@@ -342,7 +368,7 @@
         "rom": "smb3",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -358,7 +384,7 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
@@ -367,7 +393,7 @@
         "rom": "term3",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -376,7 +402,7 @@
         "rom": "tom_13c",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     },
@@ -394,16 +420,16 @@
         },
         "videomodes": [
             {
-                "snapshot_index": 1
+                "ready": true
             }
         ]
     },
     {
-        "name": "The Who's Tommy\nPinball Wizard",
+        "name": "The Who's Tommy Pinball Wizard",
         "rom": "tomy_500",
         "videomodes": [
             {
-                "snapshot_index": null
+                "ready": false
             }
         ]
     }

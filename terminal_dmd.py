@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import sys
 import time
+from typing import Callable, Optional
 
 from pinmame._types import PinmameDisplayLayout
 
@@ -183,7 +184,7 @@ _last_print = time.monotonic()
 def print_ansi_frame(
     frame: bytes | bytearray,
     scroll_to_top: bool = False,
-    label_getter: Optional(callable) = None,
+    label_getter: Optional[Callable] = None,
     width: Optional[int] = None,
     height: Optional[int] = None
 ) -> None:

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 pinmame_player.py — PinMAME Video Mode Player
@@ -36,7 +36,7 @@ import logging
 from pathlib import Path
 
 from bridge import PinMAMEBridge
-from button import ButtonEvent, ButtonInput
+from button import ButtonInput
 from dmd_display import DMDDisplay
 from game_selector import GameSelectScreen
 from login import PlayerLoginScreen, LoginSession
@@ -161,7 +161,7 @@ class PinMAMEPlayer:
                         if self.snapshotting or self.screenshotting:
                             self.log.info('no player handling while snapshotting or screenshotting')
                             continue
-                        if initials == 'guest':
+                        if not initials:
                             self.log.info('no player handling for guest')
                             continue
 

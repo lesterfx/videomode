@@ -100,7 +100,48 @@ class Snapshotter:
         self.buttons  = buttons
         self.screenshotting = screenshotting
         self.display.screenshotting = screenshotting
+        self.active_solenoids = set()
         self.log      = logging.getLogger("Snapshotter")
+
+        self.switch_matrix_indexes: dict[str, tuple[int, ...]] = {
+            'wpc': (
+                1,  2,  3,  4,  5,  6,  7,  8,
+                11, 12, 13, 14, 15, 16, 17, 18,
+                21, 22, 23, 24, 25, 26, 27, 28,
+                31, 32, 33, 34, 35, 36, 37, 38,
+                41, 42, 43, 44, 45, 46, 47, 48,
+                51, 52, 53, 54, 55, 56, 57, 58,
+                61, 62, 63, 64, 65, 66, 67, 68,
+                71, 72, 73, 74, 75, 76, 77, 78,
+                81, 82, 83, 84, 85, 86, 87, 88,
+                112, 114
+            ),
+            'sega': (
+                 1,  2,  3,  4,  5,  6,  7 , 8,
+                 9, 10, 11, 12, 13, 14, 15, 16,
+                17, 18, 19, 20, 21, 22, 23, 24,
+                25, 26, 27, 28, 29, 30, 31, 32,
+                33, 34, 35, 36, 37, 38, 39, 40,
+                41, 42, 43, 44, 45, 46, 47, 48,
+                49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64,
+                65, 66, 67, 68, 69, 70, 71, 72
+            ),
+            'gottlieb': (
+                 0,  1,  2,  3,  4,  5,  6,  7,
+                10, 11, 12, 13, 14, 15, 16, 17,
+                20, 21, 22, 23, 24, 25, 26, 27,
+                30, 31, 32, 33, 34, 35, 36, 37,
+                40, 41, 42, 43, 44, 45, 46, 47,
+                50, 51, 52, 53, 54, 55, 56, 57,
+                60, 61, 62, 63, 64, 65, 66, 67,
+                70, 71, 72, 73, 74, 75, 76, 77,
+                80, 81, 82, 83, 84, 85, 86, 87,
+                90, 91, 92, 93, 94, 95, 96, 97,
+               100,101,102,103,104,105,106,107,
+               110,111,112,113,114,115,116,117
+            )
+        }
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -115,26 +156,15 @@ class Snapshotter:
         """
 
         self.game = game
-        if not self.game.parent.switch_matrix_indexes:
-            self.game.parent.switch_matrix_indexes: list[int] = [
-                1,  2,  3,  4,  5,  6,  7,  8,
-                11, 12, 13, 14, 15, 16, 17, 18,
-                21, 22, 23, 24, 25, 26, 27, 28,
-                31, 32, 33, 34, 35, 36, 37, 38,
-                41, 42, 43, 44, 45, 46, 47, 48,
-                51, 52, 53, 54, 55, 56, 57, 58,
-                61, 62, 63, 64, 65, 66, 67, 68,
-                71, 72, 73, 74, 75, 76, 77, 78,
-                81, 82, 83, 84, 85, 86, 87, 88,
-            ]
-
 
         self.log.info("Snapshotter mode for %s — no snapshot loaded", game.parent.rom)
         self.pinmame.dmd_callback = self.display.show_frame
 
         # Start emulation from cold boot (no snapshot to restore yet).
         # connect() is assumed already called by the caller / startup().
+        assert game.parent.rom, f"game {game.parent} has no rom"
         self.pinmame.load_game(game.parent.rom)
+        self.pinmame.state_callback = self.on_state_update
 
         self.active_switches: set[int] = set()
         self.display.label_getter = self.get_label
@@ -148,7 +178,6 @@ class Snapshotter:
 
         fd  = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
-        saved_path: Optional[Path] = None
 
         try:
             tty.setraw(fd)
@@ -167,11 +196,12 @@ class Snapshotter:
                             chars = ''.join([hex(int(ch))[2:] for ch in last_frame])
                             self.log.info(chars)
                         self.log.info('Screenshot above')
+                        break
                     else:
                         self.log.info('Capturing snapshot...')
-                        saved_path = self._capture()
+                        self._capture()
+                        self.log.info('switches: %s', sorted(self.active_switches))
                         self.log.info('Snapshot saved')
-                    break
 
                 # Ctrl-C → abort
                 if ch == "\x03":
@@ -197,6 +227,8 @@ class Snapshotter:
             except Exception:
                 pass
             self.pinmame.stop()
+            self.display.label_getter = None
+            self.log.info('stopping pinmame')
 
         duration = time.monotonic() - start
         return VideoModeResult(
@@ -210,7 +242,7 @@ class Snapshotter:
     # ------------------------------------------------------------------
 
     def _capture(self):
-        self.pinmame.save_snapshot()
+        self.pinmame.save_snapshot(self.game.snapshot_index)
 
     # ------------------------------------------------------------------
     # Terminal helpers
@@ -221,10 +253,11 @@ class Snapshotter:
             return self._get_switches_label() + '\r\n' + self._get_lamps_label()
         except:
             logging.error('error getting label', exc_info=True)
+            return ''
 
     def _get_switches_label(self) -> str:
         r = 'switches: '
-        for i, idx in enumerate(self.game.parent.switch_matrix_indexes):
+        for i, idx in enumerate(self.switch_matrix_indexes[self.game.parent.platform]):
             if idx in self.active_switches:
                 r += self._SNAPSHOTTER_CHARS[i]
             else:
@@ -232,10 +265,12 @@ class Snapshotter:
         return r
 
     def _get_lamps_label(self):
-        r = 'lamps: '
+        r = f'{str(self.game)} lamps: '
         lamps = self.pinmame.get_lamps()
-        for idx in self.game.parent.switch_matrix_indexes:
+        for idx in self.switch_matrix_indexes[self.game.parent.platform]:
             # if idx not in {28, 35, 37, 38, 36}: continue
+            # if idx not in {47, 27, 43, 34, 25, 41, 53, 32, 21, 57, 51, 18}: continue  # indiana jones
+            # if idx not in {77, 76, 75, 74, 73, 72, 71}: continue  # black rose
             if idx in lamps:
                 r += str(idx)
             else:
@@ -246,7 +281,19 @@ class Snapshotter:
 
     def _switch_for_key(self, ch: str) -> Optional[int]:
         try:
-            return self.game.parent.switch_matrix_indexes[self._SNAPSHOTTER_CHARS.index(ch)]
+            return self.switch_matrix_indexes[self.game.parent.platform][self._SNAPSHOTTER_CHARS.index(ch)]
         except (ValueError, IndexError):
             return None
 
+    def on_state_update(self, solenoid, state):
+        try:
+            if state:
+                self.active_solenoids.add(solenoid)
+            else:
+                self.active_solenoids.remove(solenoid)
+            all_solenoids = ['  ']* (max(self.active_solenoids or {0})+1)
+            for solenoid in self.active_solenoids:
+                all_solenoids[solenoid] = str(solenoid).rjust(2)
+            # self.log.info('solenoids: %s', ' '.join(all_solenoids))
+        except:
+            self.log.error('error getting solenoid label', exc_info=True)

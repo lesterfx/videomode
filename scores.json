@@ -10,5 +10,17 @@
     "players": {
       "MHL": 7935000
     }
+  },
+  "mm_109|1": {
+    "high_score": 0,
+    "players": {
+      "MHL": 0
+    }
+  },
+  "afm_113b|1": {
+    "high_score": 0,
+    "players": {
+      "MHL": 0
+    }
   }
 }

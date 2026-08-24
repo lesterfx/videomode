@@ -288,7 +288,7 @@ if __name__ == '__main__':
         while True:
             event = buttons.poll(timeout=0.1)
             if event is not None:
-                print(f"[{time.strftime('%H:%M:%S')}] {event.name}")
+                print(f"[{time.strftime('%H:%M:%S')}] {event.button.name} {event.pressed}")
     except KeyboardInterrupt:
         print("\nDone.")
     finally:

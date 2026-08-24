@@ -7,7 +7,7 @@ import logging
 import os
 from pathlib import Path
 from random import randint
-from typing import Optional
+from typing import Any, Callable, Generator, Optional
 
 from fonts import FONT
 
@@ -16,29 +16,33 @@ class RandomColor:
         self.minval = min(minval, maxval)
         self.maxval = max(minval, maxval)
 
-    def __call__(self):
+    def __call__(self, x: int, y: int, t: int) -> int:
         return randint(self.minval, self.maxval)
 
+class ColorRamp:
+    def __init__(self, width=10, speed=1, mapper=Callable[[int], int]):
+        self.width = width
+        self.speed = speed
+        self.mapper = mapper
+
+    def __call__(self, x: int, y: int, t: int) -> int:
+        val = abs(((x + y - t*self.speed) % self.width*2) - self.width)
+        val = self.mapper(val)
+        return val
+
 class TextRender:
-    _FONT_H = 7
-
-
-    '''
-    while True:
-        print(hex(int('0x'+input('0x'), 16)//2))
-    '''
-
-    def __init__(self, width: int, height: int, depth: int):
+    def __init__(self, width: int, height: int, depth: int) -> None:
         self.width = width
         self.height = height
         self.depth = depth
+        self.t = 0
         self.clear()
         self.log = logging.getLogger('TextRender')
 
-    def clear(self):
+    def clear(self) -> None:
+        self.t += 1
         self.frame = bytearray(self.width * self.height)
 
-# ---------------------------------------------------------------------------
     def draw_text(
         self,
         text: str,
@@ -46,35 +50,20 @@ class TextRender:
         x: int = 0,
         right: bool = False,
         center: bool = False,
-        color: int|RandomColor = 3,
-        font: int = 7,
-        box_x: Optional(int) = None,
-        box_y: Optional(int) = None,
-        box_r: Optional(int) = None,
-        box_b: Optional(int) = None,
+        color: int|Callable[[int, int, int], int] = 3,
+        font: int|tuple[int, int] = 7,
+        box_x: Optional[int] = None,
+        box_y: Optional[int] = None,
+        box_r: Optional[int] = None,
+        box_b: Optional[int] = None,
         background: bool = False,
         outline: bool = False,
         kerning: int = 1,
-        outline_color: int|RandomColor = 0
-    ) -> bool:
-        """
-        Draw a line of text on the frame
- 
-        Parameters
-        ----------
-        text      : str of the text to be displayed
-        y         : row of the line position
-        x         : column to start from
-        color     : how bright (0-1) to render the text
-        box_x, box_y, box_r, box_b : coordinates drawing is constrained to
-
-        Returns
-        -------
-        bool
-            True if text overflowed, False if not
-        """
+        outline_color: int|Callable[[int, int, int], int] = 0
+    ) -> None:
         
         if outline:
+            assert isinstance(font, int)
             self.draw_text(
                 text = text,
                 y = y-1,
@@ -121,7 +110,7 @@ class TextRender:
                 if box_y <= y < box_b:
                     if bool(col_bits & 1):
                         if callable(color):
-                            intensity = color()
+                            intensity = color(x, y, self.t)
                         else:
                             intensity = color
                         self.frame[y * self.width + x] = intensity
@@ -130,7 +119,7 @@ class TextRender:
    
                 col_bits = col_bits >> 1
 
-    def _char_columns(self, ch: str, font: int=7) -> bytes:
+    def _char_columns(self, ch: str, font: int|tuple[int, int]=7) -> tuple[int, ...]:
         """Return the 5 column bytes for a printable ASCII character."""
         try:
             font_d = FONT[font]
@@ -143,7 +132,7 @@ class TextRender:
             self.log.error(f'missing character: {ch}')
             return font_d['?']
 
-    def _box(self, x:int, y:int, w:int, h:int):
+    def _box(self, x:int, y:int, w:int, h:int) -> Generator[tuple[int, int, int], Any, None]:
         r = x + w
         t = y + h
         x = min(max(0, x), self.width)
@@ -153,21 +142,21 @@ class TextRender:
         for row_i in range(y, t):
             for col_i in range(x, r):
                 index = row_i * self.width + col_i
-                yield index
+                yield index, col_i, row_i
 
-    def invert(self, x:int, y:int, w:int, h:int):
-        for index in self._box(x, y, w, h):
+    def invert(self, x:int, y:int, w:int, h:int) -> None:
+        for index, _x, _y in self._box(x, y, w, h):
             self.frame[index] = (2**self.depth-1) - self.frame[index]
 
-    def box(self, x:int, y:int, w:int, h:int, color: float|RandomColor):
-        for index in self._box(x, y, w, h):
+    def box(self, x:int, y:int, w:int, h:int, color: int|Callable[[int, int, int], int]) -> None:
+        for index, _x, _y in self._box(x, y, w, h):
             if callable(color):
-                col = color()
+                col = color(_x, _y, self.t)
             else:
                 col = color
             self.frame[index] = col
 
-    def image(self, data):
+    def image(self, data: bytes|bytearray) -> None:
         self.frame[:] = data
 
 # ---------------------------------------------------------------------------

@@ -58,6 +58,12 @@ class PlayerScoreEntry:
     score: int
     is_high_score: bool   # True if this equals the rom's all-time high score
 
+    def __str__(self):
+        return f'{self.rom}:{self.score}{"!" if self.is_high_score else ""}'
+
+    def __repr__(self):
+        return str(self)
+
 
 class HighScoreStore:
     """
@@ -135,7 +141,7 @@ class HighScoreStore:
             return None
         return entry.players.get(initials.upper()[:3])
 
-    def highest_scores(self) -> dict[PlayerScoreEntry]:
+    def highest_scores(self) -> dict[str, PlayerScoreEntry]:
         results: dict[str, PlayerScoreEntry] = {}
         for rom, entry in self._data.items():
             score = entry.high_score
@@ -148,7 +154,7 @@ class HighScoreStore:
             )
         return results
 
-    def scores_for_player(self, initials: Optional[str]) -> dict[PlayerScoreEntry]:
+    def scores_for_player(self, initials: Optional[str]) -> dict[str, PlayerScoreEntry]:
         """
         All of a player's personal-best scores across every ROM, each
         flagged with whether it's that ROM's all-time high score.
@@ -173,7 +179,7 @@ class HighScoreStore:
     # Updates
     # ------------------------------------------------------------------
 
-    def submit_score(self, result: VideoModeResult, initials: str) -> SubmitResult:
+    def submit_score(self, result: VideoModeResult, initials: Optional[str]) -> SubmitResult:
         """
         Record a score for a player on rom.
 
@@ -185,7 +191,7 @@ class HighScoreStore:
         
         self.log.info('submitting score for %s: %s', initials, result)
         rom = result.game.unique_name
-        score = result.score
+        score = result.score or 0
 
         entry = self._data.setdefault(rom, RomScores())
 
@@ -201,6 +207,7 @@ class HighScoreStore:
 
         changed = False
         if is_personal_best:
+            assert initials, 'logic fail, initials is always truthy by now'
             entry.players[initials] = score
             changed = True
         if is_new_high_score:
@@ -210,10 +217,10 @@ class HighScoreStore:
         if changed:
             self.save()
 
-        result = SubmitResult(
+        submitted_result = SubmitResult(
             is_new_high_score=is_new_high_score,
             is_personal_best=is_personal_best,
             previous_best=previous_best,
         )
-        self.log.info('result %s', result)
-        return result
+        self.log.info('result %s', submitted_result)
+        return submitted_result

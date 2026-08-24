@@ -1,9 +1,11 @@
+from typing import Optional
+
 from button import ButtonInput, NavEvent
 from dmd_display import DMDDisplay
 from screens import Screen
 from players import PlayerStore
 from initials import InitialsEntryScreen
-from text_to_dmd import RandomColor
+from text_to_dmd import RandomColor, ColorRamp
 
 # ---------------------------------------------------------------------------
 # PlayerLoginScreen
@@ -22,7 +24,7 @@ class PlayerLoginScreen(Screen):
         self.player_store = player_store
         self.initials_screen = InitialsEntryScreen(display, buttons)
 
-    def run(self) -> str:
+    def run(self) -> Optional[str]:
         SEPARATION = 31
         users = [(0, 'guest')]
         for i, initials in enumerate(self.player_store.get_players() + ['new']):
@@ -34,12 +36,12 @@ class PlayerLoginScreen(Screen):
 
         def draw(index: int) -> None:
             self.text.clear()
-            self.text.box(0, 0, 128, 16, RandomColor(1, 2))
+            self.text.box(0, 0, self.text.width, self.text.height//2, RandomColor(1,3))
             self.text.draw_text(
                 'Select player',
                 center = True,
-                x = 64,
-                y = 2-self._scroll[1],
+                x = self.text.width//2,
+                y = self.text.height//2-14-self._scroll[1],
                 font = 12,
                 color = 3,
                 outline = True,
@@ -47,15 +49,15 @@ class PlayerLoginScreen(Screen):
             )
             for i, (x, initials) in enumerate(users):
                 if self.WRAP:
-                    x = (int(64 + x - self._scroll[0]+wrap_width//4) % wrap_width) - wrap_width//4
+                    x = (int(self.text.width//2 + x - self._scroll[0]+wrap_width//4) % wrap_width) - wrap_width//4
                 else:
-                    x = (int(64 + x - self._scroll[0]+wrap_width//4) ) - wrap_width//4
+                    x = (int(self.text.width//2 + x - self._scroll[0]+wrap_width//4) ) - wrap_width//4
 
                 self.text.draw_text(
                     initials,
                     center = True,
                     x = x,
-                    y = 17 + self._scroll[1],
+                    y = self.text.height//2 + 1 + self._scroll[1],
                     font = 15,
                     color = 3 if (i==index) else 1
                 )
@@ -83,10 +85,11 @@ class PlayerLoginScreen(Screen):
         initials = users[self._selected_index % len(users)][1]
         if initials == 'new':
             initials = self.initials_screen.run('NEW PLAYER')
+        elif initials == 'guest':
+            initials = None
 
         self._selected_index = 0
-        return initials or 'guest'
-
+        return initials
 
 # ---------------------------------------------------------------------------
 # LoginSession
@@ -109,7 +112,7 @@ class LoginSession:
         self.login_screen = login_screen
         self.initials: Optional[str] = None
 
-    def __enter__(self) -> str:
+    def __enter__(self) -> Optional[str]:
         self.initials = self.login_screen.run()
         return self.initials
 

@@ -126,7 +126,7 @@ class PinMAMEBridge:
         # Optional; defaults to the standard logging module.
         self.log_callback: Optional[Callable] = None
 
-        self._pending_keys: dict[int, list[int, Optional[float]]] = {}
+        self._pending_keys: dict[int, tuple[float, float]] = {}
 
         self.log = logging.getLogger('PinMAMEBridge')
 
@@ -263,15 +263,16 @@ class PinMAMEBridge:
     # trigger_keycode() — send a keycode to the emulator for n frames
     # ------------------------------------------------------------------
 
-    def _trigger_keycode(self, *keycodes: list[int], delay=0, duration=.5) -> None:
+    def _trigger_keycode(self, *keycodes: int, delay=0, duration=.5) -> None:
         """Report a keycode as pressed for a fixed number of callback invocations."""
         start = time.monotonic() + delay
         for keycode in keycodes:
-            self._pending_keys[keycode] = [start, duration]
+            self._pending_keys[keycode] = (start, duration)
 
-    def save_snapshot(self):
+    def save_snapshot(self, index: int):
+        number_code = getattr(Keycode, f'NUMBER_{index}')
         self._trigger_keycode(Keycode.F7, Keycode.LEFT_SHIFT)
-        self._trigger_keycode(Keycode.NUMBER_1, delay=1)
+        self._trigger_keycode(number_code, delay=1)
 
     def load_snapshot(self, index: int):
         number_code = getattr(Keycode, f'NUMBER_{index}')
@@ -293,7 +294,7 @@ class PinMAMEBridge:
         Returns a list of (sol_no, state) tuples.
         Used by EndDetector in Phase 7 as an alternative to the callback.
         """
-        if not self.is_running:
+        if not self.is_running or not self._lib:
             return []
         buf = (PinmameSolenoidState * 64)()
         count = self._lib.PinmameGetChangedSolenoids(buf)
@@ -301,13 +302,13 @@ class PinMAMEBridge:
 
     def get_changed_lamps(self) -> list[tuple[int, int]]:
         """Poll for lamp state changes since the last call."""
-        if not self.is_running:
+        if not self.is_running or not self._lib:
             return []
         buf = (PinmameLampState * 256)()
         count = self._lib.PinmameGetChangedLamps(buf)
         return [(buf[i].lampNo, buf[i].state) for i in range(count)]
     
-    def get_lamps(self) -> list[tuple[int, int]]:
+    def get_lamps(self) -> set[int]:
         for lamp, state in self.get_changed_lamps():
             if state:
                 self._lamps.add(lamp)

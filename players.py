@@ -59,14 +59,12 @@ class PlayerStore:
         """Return all known player initials, most recently played first."""
         return self._load()
 
-    def add_player(self, initials: str) -> list[str]:
+    def add_player(self, initials: Optional[str]) -> None:
         """
         Add a player's initials to the top of the list.
 
         If the initials are already present, this behaves exactly like
         move_to_top() — no duplicate entry is created.
-
-        Returns the updated list.
         """
         if not initials:
             return
@@ -78,9 +76,8 @@ class PlayerStore:
         self._save(players)
         self.log.info("Added/promoted player %r — %d known players",
                        initials, len(players))
-        return players
 
-    def move_to_top(self, initials: str) -> list[str]:
+    def move_to_top(self, initials: str):
         """
         Move an existing player's initials to the top of the list (most
         recent) — call this once a video mode session finishes.
@@ -88,10 +85,8 @@ class PlayerStore:
         If the initials aren't already in the list, they're added, same
         as add_player(). There's no meaningful difference between "new
         player" and "returning player" once a session has just been played.
-
-        Returns the updated list.
         """
-        return self.add_player(initials)
+        self.add_player(initials)
 
     # ------------------------------------------------------------------
     # Internal

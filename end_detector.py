@@ -6,7 +6,7 @@ from typing import Optional
 from vm_types import EndDetectorConfig
 
 if typing.TYPE_CHECKING:
-    from videomode import PinMameBridge
+    from bridge import PinMAMEBridge
  
 class EndDetector:
     """

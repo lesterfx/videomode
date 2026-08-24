@@ -9,6 +9,7 @@ from bridge import PinMAMEBridge
 from dmd_display import DMDDisplay
 from button import ButtonInput, ButtonEvent, ButtonName
 from vm_types import GameEntry, VideoModeResult
+from end_detector import EndDetector
 
 
 
@@ -60,6 +61,8 @@ class VideoModeSession:
         self.log.info('disabling dmd')
         # self.pinmame.dmd_callback = self.display.show_frame
         self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
+        assert game.parent.rom, f'{game.parent} has no rom defined - {game.parent.rom}'
+        assert game.snapshot_index, f'{game} has no snapshot - {game.snapshot_index}'
         self.pinmame.load_game(game.parent.rom)
 
         self.detector.reset(game.parent.end_detector_config, active=False)
@@ -88,6 +91,7 @@ class VideoModeSession:
          # Wire DMD frames to the physical display for both modes.
         self.log.info('setting up dmd for real now')
         self.pinmame.dmd_callback = self.display.show_frame
+        self.display.label_getter = self.score_label_getter
         self.detector.reset(game.parent.end_detector_config)
 
         self.log.debug("Entering normal play loop")
@@ -154,6 +158,9 @@ class VideoModeSession:
             score=score,
             duration_seconds=duration
         )
+
+    def score_label_getter(self):
+        return f'score: {self.pinmame.get_score()}'
 
     def load_snapshot(self, index: int):
         self.pinmame.load_snapshot(index)

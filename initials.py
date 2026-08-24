@@ -55,11 +55,11 @@ class InitialsEntryScreen(Screen):
             for option in options:
                 if option['i'] == selected_index:
                     color = 0
-                    outline = 1
+                    outline = True
                     outline_color = 3
                 else:
                     color = option['color']
-                    outline = 0
+                    outline = False
                     outline_color = 0
 
                 self.text.draw_text(
@@ -146,4 +146,4 @@ class InitialsEntryScreen(Screen):
                 selected_row = 3
                 selected_col = 6
 
-        return initials or 'guest'
+        return initials or None

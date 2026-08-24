@@ -6,7 +6,7 @@ from typing import Optional
 class GameParent:
     """One entry in the game selection list."""
 
-    name: Optional[str] = None
+    name: str
     # display name shown on DMD
 
     rom: Optional[str] = None
@@ -25,24 +25,37 @@ class GameParent:
 
     end_detector_config: Optional['EndDetectorConfig'] = None
 
-    switch_matrix_indexes: Optional[list[int]] = None
+    platform: str = 'wpc'
+
+    y: Optional[int] = None
+
+    def __str__(self):
+        return (self.name or 'unknown game').replace('\n', ' ')
 
 
 @dataclass
 class GameEntry:
     parent: GameParent
 
-    name: str = ''
-    # optional name for this video mode, if more than one in a game
+    snapshot_index:int
 
-    snapshot_index: Optional[int] = None
-    # save state restore index for this snapshot
+    ready: bool
+
+    name: str = ''
 
     notes: Optional[str] = None
+
+    y: Optional[int] = None
+
+    high_score: str = ''
+    is_high_score: bool = False
 
     @property
     def unique_name(self):
         return f'{self.parent.rom}|{self.snapshot_index}'
+
+    def __str__(self):
+        return f"{self.name.replace('\n', ' ')} ({self.snapshot_index})"
 
 @dataclass
 class VideoModeResult:

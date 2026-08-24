@@ -159,7 +159,6 @@ def has_map(rom_name: str) -> bool:
     """True if this ROM has a known nvram-maps entry."""
     return rom_name in _load_index()
 
-
 def get_player1_score(lib, rom_name: str) -> Optional[int]:
     """
     Read Player 1's current score live from the running emulator.
