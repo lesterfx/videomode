@@ -29,6 +29,8 @@ class GameParent:
 
     y: Optional[int] = None
 
+    bit_depth: [int] = 2
+
     def __str__(self):
         return (self.name or 'unknown game').replace('\n', ' ')
 
@@ -85,3 +87,6 @@ class EndDetectorConfig:
 
     solenoid_trigger_state: bool = True
     # whether rising or falling solenoid state should trigger end
+
+    timeout: float = 60
+    # number of seconds after which the video mode did not end correctly

@@ -18,6 +18,7 @@ game-loading logic that has nothing to do with login.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Optional
 
 from button import ButtonInput, NavEvent
@@ -49,6 +50,7 @@ class Screen:
 
         self._selected_index = 0
         self._scroll = [0, 0]
+        self._timeout = None
 
     def show(self) -> None:
         self.display.show_frame(self.text.frame)
@@ -78,4 +80,18 @@ class Screen:
                 moved = True
         return moved
 
+    TIMEOUT = 30
+    def timeout(self, force=False) -> bool:
+        now = time.monotonic()
+        if force: self._timeout = now - self.TIMEOUT
+        if self._timeout is None:
+            self._timeout = now
+        if self._timeout + self.TIMEOUT <= now:
+            return True
+        else:
+            return False
 
+    def reset_timeout(self):
+        was_timed_out = self.timeout()
+        self._timeout = time.monotonic()
+        return not was_timed_out

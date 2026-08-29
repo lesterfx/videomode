@@ -1,4 +1,6 @@
+from enum import Enum, auto
 from typing import Optional
+import time
 
 from button import ButtonInput, NavEvent
 from dmd_display import DMDDisplay
@@ -6,6 +8,9 @@ from screens import Screen
 from players import PlayerStore
 from initials import InitialsEntryScreen
 from text_to_dmd import RandomColor, ColorRamp
+
+class Login(Enum):
+    BACK = auto()
 
 # ---------------------------------------------------------------------------
 # PlayerLoginScreen
@@ -25,64 +30,49 @@ class PlayerLoginScreen(Screen):
         self.initials_screen = InitialsEntryScreen(display, buttons)
 
     def run(self) -> Optional[str]:
+        self.reset_timeout()
         SEPARATION = 31
-        users = [(0, 'guest')]
+        self.users = [(0, 'guest')]
         for i, initials in enumerate(self.player_store.get_players() + ['new']):
-            users.append((int(SEPARATION * (i + 1.3)), initials))
-        wrap_width = users[-1][0] + SEPARATION + 10
+            self.users.append((int(SEPARATION * (i + 1.3)), initials))
+        self.wrap_width = self.users[-1][0] + SEPARATION + 10
         self._selected_index = 0
-        self._scroll = [0, 100]
-        self.WRAP = len(users) > 5
+        self._scroll = [0, self.text.height]
+        self.scroll_target_y = 0
+        self.WRAP = len(self.users) > 5
 
-        def draw(index: int) -> None:
-            self.text.clear()
-            self.text.box(0, 0, self.text.width, self.text.height//2, RandomColor(1,3))
-            self.text.draw_text(
-                'Select player',
-                center = True,
-                x = self.text.width//2,
-                y = self.text.height//2-14-self._scroll[1],
-                font = 12,
-                color = 3,
-                outline = True,
-                kerning = 1
-            )
-            for i, (x, initials) in enumerate(users):
-                if self.WRAP:
-                    x = (int(self.text.width//2 + x - self._scroll[0]+wrap_width//4) % wrap_width) - wrap_width//4
-                else:
-                    x = (int(self.text.width//2 + x - self._scroll[0]+wrap_width//4) ) - wrap_width//4
-
-                self.text.draw_text(
-                    initials,
-                    center = True,
-                    x = x,
-                    y = self.text.height//2 + 1 + self._scroll[1],
-                    font = 15,
-                    color = 3 if (i==index) else 1
-                )
-            self.show()
-
+        back_duration = time.monotonic()
         for event in self.buttons.get_key_presses():
+            self.scroll_target_y = 0
+            if event is not NavEvent.BOTH: back_duration = time.monotonic()
             if event is NavEvent.BOTH:
-                # Nothing to go "back" to from the root login screen.
-                continue
-            if event is NavEvent.SELECT:
-                break
+                self.timeout(force=True)
+                self.log.info('force log out')
+                self.scroll_target_y = self.text.height//2
+                if time.monotonic() - back_duration > 2:
+                    return Login.BACK
+            elif event is NavEvent.SELECT:
+                if self.reset_timeout():
+                    break
             elif event is NavEvent.LEFT:
-                self._selected_index -= 1
+                if self.reset_timeout():
+                    self._selected_index -= 1
             elif event is NavEvent.RIGHT:
-                self._selected_index += 1
+                if self.reset_timeout():
+                    self._selected_index += 1
+            elif event is NavEvent.NONE:
+                if self.timeout():
+                    self.scroll_target_y = self.text.height//2
 
             if not self.WRAP:
-                self._selected_index = min(len(users)-1, max(self._selected_index, 0))
+                self._selected_index = min(len(self.users)-1, max(self._selected_index, 0))
 
-            wrap_count, index = divmod(self._selected_index, len(users))
-            self.animate_scroll_toward(wrap_width*wrap_count + users[index][0], 0)
-            draw(index)
+            wrap_count, index = divmod(self._selected_index, len(self.users))
+            self.animate_scroll_toward(self.wrap_width*wrap_count + self.users[index][0], self.scroll_target_y)
+            self.draw(index)
 
         self._scroll = [0, 0]
-        initials = users[self._selected_index % len(users)][1]
+        initials = self.users[self._selected_index % len(self.users)][1]
         if initials == 'new':
             initials = self.initials_screen.run('NEW PLAYER')
         elif initials == 'guest':
@@ -90,6 +80,37 @@ class PlayerLoginScreen(Screen):
 
         self._selected_index = 0
         return initials
+
+    def draw(self, index: int) -> None:
+        self.text.clear()
+        height = self.text.height//2-abs(self._scroll[1])
+        height = max(height, 0)
+        self.text.box(0, self.text.height//2-height, self.text.width, height, RandomColor(1,3))
+        self.text.draw_text(
+            'Select player',
+            center = True,
+            x = self.text.width//2,
+            y = self.text.height//2-14-self._scroll[1],
+            font = 12,
+            color = 3,
+            outline = True,
+            kerning = 1
+        )
+        for i, (x, initials) in enumerate(self.users):
+            if self.WRAP:
+                x = (int(self.text.width//2 + x - self._scroll[0]+self.wrap_width//4) % self.wrap_width) - self.wrap_width//4
+            else:
+                x = (int(self.text.width//2 + x - self._scroll[0]+self.wrap_width//4) ) - self.wrap_width//4
+
+            self.text.draw_text(
+                initials,
+                center = True,
+                x = x,
+                y = self.text.height//2 + 1 + self._scroll[1],
+                font = 15,
+                color = 3 if (i==index) else 1
+            )
+        self.show()
 
 # ---------------------------------------------------------------------------
 # LoginSession

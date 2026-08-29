@@ -32,6 +32,8 @@ from __future__ import annotations
 from collections import deque
 import logging
 import os
+from random import random
+import time
 from typing import Callable, Optional
  
 # ---------------------------------------------------------------------------
@@ -67,23 +69,11 @@ MATRIX_OPTIONS: dict = dict(
     chain_length             = 2,       # two 64×32 panels chained
     parallel                 = 1,
     hardware_mapping         = "adafruit-hat",
-    gpio_slowdown            = 2,       # increase if you see flickering on Pi 3
-    brightness               = 80,      # 0-100
+    gpio_slowdown            = 4,       # default 2, increase if you see flickering on Pi 3
+    brightness               = 30,      # 0-100
     disable_hardware_pulsing = True,    # avoids needing --led-no-hardware-pulse
+    drop_privileges          = False,   # stay root — matches the whole reason we run as root
 )
- 
-# Amber colour mapping for hardware: intensity 0-15 → (R, G, B)
-# Real DMD phosphor is roughly (255, 88, 0) at full bright.
-_R_MAX = 255
-_G_MAX = 88
-_B_MAX = 0
- 
-def _intensity_to_rgb(intensity: int) -> tuple[int, int, int]:
-    t = max(0, min(15, intensity)) / 15.0
-    return (round(_R_MAX * t), round(_G_MAX * t), _B_MAX)
- 
-# Pre-compute lookup table
-_RGB_LUT: list[tuple[int, int, int]] = [_intensity_to_rgb(i) for i in range(16)]
  
  
 # ---------------------------------------------------------------------------
@@ -115,7 +105,17 @@ class DMDDisplay:
         height:        int            ,
         terminal_mode: Optional[bool] = None,
         label:         str            = "",
+        brightness:    int            = 30,
     ) -> None:
+
+        # Amber colour mapping for hardware: intensity 0-15 → (R, G, B)
+        # Real DMD phosphor is roughly (255, 88, 0) at full bright.
+        self._R_MAX = 255
+        self._G_MAX = 88
+        self._B_MAX = 0
+
+        self.set_bit_depth(2)
+
         self.width  = width
         self.height = height
         self.label  = label
@@ -126,6 +126,8 @@ class DMDDisplay:
 
         self.screenshotting = False
         self.stack = deque(maxlen=50)
+        self.last_fps = time.monotonic()
+        self.frames_since_last_fps = 0
 
         # Resolve backend
         if terminal_mode is True:
@@ -141,12 +143,25 @@ class DMDDisplay:
             self._canvas = None
         else:
             self.log.info("DMDDisplay: hardware (rgbmatrix) mode")
-            self._matrix, self._canvas = self._init_hardware()
- 
+            self._matrix, self._canvas = self._init_hardware(brightness)
+
+        self.hardware = not self._use_terminal
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
  
+    def set_bit_depth(self, depth: int) -> None:
+        self.max_intensity = 2**depth-1
+        def _intensity_to_rgb(intensity: int) -> tuple[int, int, int]:
+            t = max(0, min(self.max_intensity, intensity)) / self.max_intensity
+            return (round(self._R_MAX * t), round(self._G_MAX * t), round(self._B_MAX * t))
+        
+        # Pre-compute lookup table
+        self._rgb_lut: list[tuple[int, int, int]] = [_intensity_to_rgb(i) for i in range(self.max_intensity+1)]
+
+
+
     def show_frame(self, frame: bytearray|bytes, layout=None) -> None:
         """
         Push a raw pixel buffer to the display.
@@ -177,11 +192,37 @@ class DMDDisplay:
             self.shown = True
         else:
             self._push_to_matrix(frame)
- 
+
+        self.frames_since_last_fps += 1
+        now = time.monotonic()
+        if now > self.last_fps + 1:
+            if not self.label_getter:
+                self.log.info('%d fps', self.frames_since_last_fps)
+            self.last_fps = now
+            self.frames_since_last_fps = 0
+
     def clear(self) -> None:
         """Blank the display."""
         self.show_frame(bytes(self.width * self.height))
+
+    def set_brightness(self, level: int) -> None:
+        """
+        Adjust display brightness at runtime (0-100).
  
+        RGBMatrixOptions.brightness only seeds the *initial* value at
+        RGBMatrix() construction time; the options object itself is inert
+        afterward. The live-adjustable knob is RGBMatrix.brightness — a
+        property exposed directly on the matrix object that calls through
+        to the underlying C++ SetBrightness() and takes effect on the very
+        next frame, no reinitialisation needed. No-op in terminal mode.
+        """
+        level = max(0, min(100, level))
+        if self._use_terminal or self._matrix is None:
+            self.log.debug("set_brightness(%d) ignored — no hardware matrix", level)
+            return
+        self._matrix.brightness = level
+        self.log.info("Brightness set to %d", level)
+
     def shutdown(self) -> None:
         """Release hardware resources."""
         if not self._use_terminal and self._matrix is not None:
@@ -196,10 +237,11 @@ class DMDDisplay:
     # Hardware initialisation
     # ------------------------------------------------------------------
  
-    def _init_hardware(self):
+    def _init_hardware(self, brightness):
         opts = RGBMatrixOptions()
         for attr, val in MATRIX_OPTIONS.items():
             setattr(opts, attr, val)
+        opts.brightness = brightness
         matrix = RGBMatrix(options=opts)
         canvas = matrix.CreateFrameCanvas()
         self.log.debug(
@@ -220,7 +262,11 @@ class DMDDisplay:
                 row_off = y * self.width
                 for x in range(self.width):
                     intensity = frame[row_off + x] & 0x0F
-                    r, g, b   = _RGB_LUT[intensity]
+                    try:
+                        r, g, b   = self._rgb_lut[intensity]
+                    except IndexError:
+                        self.log.error(f'intensity {intensity} out of range')
+                        raise
                     canvas.SetPixel(x, y, r, g, b)
         self._canvas = self._matrix.SwapOnVSync(canvas)
  
@@ -290,32 +336,35 @@ class DMDDisplay:
         canvas[y_off:y_off + content_h, x_off:x_off + content_w] = content
  
         return canvas.tobytes()
-# ---------------------------------------------------------------------------
-# Quick self-test helpers (also used by DMDDisplay._selftest)
-# ---------------------------------------------------------------------------
- 
-def make_test_frame(width: int, height: int) -> bytes:
-    """
-    Generate a gradient test pattern:
-    - horizontal ramp 0→15 across the width
-    - alternating bright/dim rows to verify row ordering
-    """
-    buf = bytearray(width * height)
-    for row in range(height):
-        row_bright = 15 if (row % 2 == 0) else 6
-        for col in range(width):
-            intensity = int(col / (width - 1) * row_bright)
-            buf[row * width + col] = intensity
-    return bytes(buf)
- 
- 
-def make_checkerboard_frame(width: int, height: int) -> bytes:
-    """Full-bright checkerboard — verifies pixel addressing."""
-    buf = bytearray(width * height)
-    for row in range(height):
-        for col in range(width):
-            buf[row * width + col] = 15 if (row + col) % 2 == 0 else 0
-    return bytes(buf)
+
+    def make_gradient_frame(self, width: int, height: int, dither: bool=True) -> bytes:
+        """
+        Generate a gradient test pattern:
+        - horizontal ramp 0→15 across the width
+        """
+        buf = bytearray(width * height)
+        if dither:
+            row_bright = self.max_intensity
+        else:
+            row_bright = self.max_intensity+1
+
+        for row in range(height):
+            for col in range(width):
+                intensity = col/width * row_bright
+                if dither:
+                    floor, frac = divmod(col/width * row_bright, 1)
+                    intensity = floor if random() > frac else floor+1
+                buf[row * width + col] = int(intensity)
+        return bytes(buf)
+    
+    
+    def make_checkerboard_frame(self, width: int, height: int, box_size: int=1) -> bytes:
+        """Full-bright checkerboard — verifies pixel addressing."""
+        buf = bytearray(width * height)
+        for row in range(height):
+            for col in range(width):
+                buf[row * width + col] = self.max_intensity if (row//box_size + col//box_size) % 2 == 0 else 0
+        return bytes(buf)
  
 # ---------------------------------------------------------------------------
 # CLI smoke test — verifies the pixel pipeline end-to-end
@@ -326,15 +375,17 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
  
-    display = DMDDisplay(terminal_mode=True, label="SMOKE TEST", width=128, height=32)
+    display = DMDDisplay(label="SMOKE TEST", width=128, height=32)
  
     print("=== gradient ===")
-    display.show_frame(make_test_frame(display.width, display.height))
-    time.sleep(0.5)
+    start = time.monotonic()
+    while time.monotonic() < start+5:
+        display.show_frame(make_gradient_frame(display.width, display.height))
  
     print("\n=== checkerboard ===")
-    display.show_frame(make_checkerboard_frame(display.width, display.height))
-    time.sleep(0.5)
+    for box_size in range(1, display.height+1):
+        display.show_frame(make_checkerboard_frame(display.width, display.height, box_size))
+        time.sleep(0.5)
  
     print("\n=== blank ===")
     display.clear()

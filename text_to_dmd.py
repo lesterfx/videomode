@@ -84,11 +84,12 @@ class TextRender:
 
         cols = []
         i = 0
-        for ch in text:
+        for ch in str(text):
             for col in self._char_columns(ch, font=font):
-                i += 1
                 cols.append((i, col))
+                i += 1
             i += kerning
+        i -= 1
 
         start_x = x
         if right:

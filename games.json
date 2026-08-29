@@ -56,6 +56,10 @@
         "right_flipper_switch": 112,
         "launch_switch": 34,
         "active_switches": [16, 17, 18, 22, 55],
+        "end_detector_config": {
+            "ignored_solenoids": [17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 27, 28],
+            "trigger_solenoid": 1
+        },
         "videomodes": [
             {
                 "name": "Walk the Plank",
@@ -128,6 +132,7 @@
         "left_flipper_switch": 114,
         "right_flipper_switch": 112,
         "launch_switch": 0,
+        "bit_depth": 2,
         "end_detector_config": {
             "grace_period_seconds": 5,
             "trigger_solenoid": 31
@@ -142,6 +147,7 @@
         "name": "Cue Ball Wizard",
         "rom": "cueball",
         "platform": "gottlieb",
+        "bit_depth": 4,
         "videomodes": [
             {
                 "ready": false
@@ -366,6 +372,7 @@
     {
         "name": "Super Mario Bros",
         "rom": "smb3",
+        "bit_depth": 4,
         "videomodes": [
             {
                 "ready": false

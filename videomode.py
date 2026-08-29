@@ -34,17 +34,20 @@ import argparse
 import contextlib
 import logging
 from pathlib import Path
+import sys
 
 from bridge import PinMAMEBridge
 from button import ButtonInput
 from dmd_display import DMDDisplay
 from game_selector import GameSelectScreen
-from login import PlayerLoginScreen, LoginSession
+from settings_screen import SettingsScreen
+from login import PlayerLoginScreen, Login
 from players import PlayerStore
 from rom_session import VideoModeSession
 from snapshotter import Snapshotter
 from end_detector import EndDetector
 from high_scores import HighScoreStore
+from settings import SettingsStore
 import vm_types
 
 # ---------------------------------------------------------------------------
@@ -93,16 +96,26 @@ class PinMAMEPlayer:
         self.snapshotting = args.snapshotter
         self.screenshotting = args.screenshotter
 
-        logging.basicConfig(filename='videomode.log',
-                            filemode='a',
-                            format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S',
-                            level=logging.INFO)
+        logging.basicConfig(
+            format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            level=logging.INFO,
+            filename='videomode.log',
+            filemode='a'
+        )
         self.log = logging.getLogger("PinMAMEPlayer")
 
+        self.settings = SettingsStore()
         self.pinmame  = PinMAMEBridge()
-        self.display  = DMDDisplay(width=DMD_WIDTH, height=DMD_HEIGHT)
+        self.display  = DMDDisplay(width=DMD_WIDTH, height=DMD_HEIGHT, brightness=self.settings.get('brightness'))
+        if self.display.hardware:
+            stderr_handler = logging.StreamHandler(sys.stderr)
+            stderr_handler.setLevel(logging.DEBUG)
+            stderr_handler.setFormatter(logging.getLogger().handlers[0].formatter)
+            logging.getLogger().addHandler(stderr_handler)
+
         self.buttons  = ButtonInput()
+        self.settings_screen = SettingsScreen(self.display, self.buttons, self.settings)
         self.detector = EndDetector(self.pinmame)
         if self.snapshotting or self.screenshotting:
             self.session = Snapshotter(
@@ -128,7 +141,8 @@ class PinMAMEPlayer:
         self.log.info("Starting up")
         self.pinmame.connect()
         self.buttons.start()   # events queued internally; callers use poll()
-        self.game_select.load_games(self.snapshotting or self.screenshotting, self.screenshotting)
+        # self.game_select.load_games(self.snapshotting or self.screenshotting, self.screenshotting)
+        self.game_select.load_games(True, self.screenshotting)
 
     def shutdown(self) -> None:
         self.log.info("Shutting down")
@@ -140,12 +154,18 @@ class PinMAMEPlayer:
         self.startup()
         try:
             while True:
-                if self.snapshotting or self.screenshotting:
-                    login_ctx = contextlib.nullcontext(None)
-                else:
-                    login_ctx = LoginSession(self.login)
+                self.settings_screen.run()
 
-                with login_ctx as initials:
+                while True:
+                    if self.snapshotting or self.screenshotting:
+                        initials = None
+                    elif self.settings.get('log in first'):
+                        initials = self.login.run()
+                        if initials is Login.BACK:
+                            break
+                    else:
+                        initials = None
+
                     while True:
                         game = self.game_select.run(
                             self.scores, initials, self.snapshotting, self.screenshotting
@@ -155,9 +175,15 @@ class PinMAMEPlayer:
                             # to the login screen for a fresh initials pick.
                             break
                         try:
+                            self.display.set_bit_depth(game.parent.bit_depth)
                             result = self.session.run(game)
                         except KeyboardInterrupt:
                             continue
+                        except:
+                            self.log.error('error in video mode', exc_info=True)
+                            continue
+                        finally:
+                            self.display.set_bit_depth(2)
                         if self.snapshotting or self.screenshotting:
                             self.log.info('no player handling while snapshotting or screenshotting')
                             continue

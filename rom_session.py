@@ -9,7 +9,7 @@ from bridge import PinMAMEBridge
 from dmd_display import DMDDisplay
 from button import ButtonInput, ButtonEvent, ButtonName
 from vm_types import GameEntry, VideoModeResult
-from end_detector import EndDetector
+from end_detector import EndDetector, EndDetectorTimedOut
 
 
 
@@ -76,9 +76,8 @@ class VideoModeSession:
                     self.pinmame.send_switch(switch, True)
                 self.log.info('start_score is %s', start_score)
                 score_now = self.pinmame.get_score()
-                if score_now is None:
-                    time.sleep(0.1)
-                else:
+                time.sleep(0.1)
+                if score_now is not None:
                     start_score = max(start_score, score_now)
                     if time.monotonic() < start_time + 3: continue
                     break
@@ -128,6 +127,9 @@ class VideoModeSession:
                             self.log.info(f'launch [{game.parent.launch_switch}] {event.pressed}')
                             self.pinmame.send_switch(game.parent.launch_switch, event.pressed)
 
+        except EndDetectorTimedOut:
+            self.pinmame.stop()
+            return
         except:
             self.pinmame.stop()
             raise

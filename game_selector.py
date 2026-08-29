@@ -3,6 +3,7 @@
 import json
 import logging
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from text_to_dmd import ColorRamp, RandomColor
 from typing import Optional
 
@@ -31,11 +32,12 @@ class GameSelectScreen(Screen):
         super().__init__(display, buttons)
         self._parents: list[GameParent] = []
         self._games: list[GameEntry] = []
+        self._selected_index = 0
 
     def load_games(self, allow_no_snapshot: bool=False, only_without_screenshot: bool=False) -> None:
-        self.screenshots = {key: bytes(int(ch) for ch in screenshot) for key, screenshot in json.load(open('screenshots.json')).items() if screenshot}
+        self.screenshots = {key: bytes(int(ch) for ch in screenshot) for key, screenshot in json.load(open(Path(__file__).parent / 'screenshots.json')).items() if screenshot}
 
-        entries = json.load(open('games.json'))
+        entries = json.load(open(Path(__file__).parent / 'games.json'))
         for entry in entries:
             videomodes = entry.pop('videomodes', [])
             end_cfg = entry.pop('end_detector_config', {})
@@ -44,18 +46,21 @@ class GameSelectScreen(Screen):
             if only_without_screenshot and self.screenshots.get(parent.rom):
                 self.log.warning(f'already have screenshot for: {parent}')
                 continue
-            if not parent.rom:
-                self.log.warning(f'NO ROM FOR GAME: {parent}')
-                continue
+            if not (Path.home() / '.pinmame' / 'roms' / (parent.rom + '.zip')).exists():
+                parent.rom = None
             if not videomodes:
                 self.log.warning(f'NO VIDEO MODES CONFIGURED: {parent}')
             for i, videomode in enumerate(videomodes, 1):
                 game = GameEntry(parent=parent, **videomode, snapshot_index=i)
-                if not game.ready and not allow_no_snapshot:
-                    self.log.warning(f'VIDEO MODE HAS NO SNAPSHOT INDEX: %s - %s', game.parent, game.snapshot_index)
-                    continue
-                elif not only_without_screenshot and allow_no_snapshot and game.ready:
-                    continue
+                if not game.ready:
+                    game.msg = 'NOT READY'
+                if not parent.rom:
+                    game.ready = False
+                    game.msg = 'NO ROM'
+                if not (Path.home() / '.pinmame' / 'sta' / f'{parent.rom}-{game.snapshot_index}.sta').exists():
+                    game.ready = False
+                    game.msg = 'NO SNAPSHOT'
+                    self.log.warning('no snapshot for game %s %s', parent, game)
                 parent.children.append(game)
             if not parent.children:
                 continue
@@ -98,7 +103,7 @@ class GameSelectScreen(Screen):
         """
 
         self.log.info('selecting for %s', initials or 'guest')
-
+        self.reset_timeout()
         self.snapshotter = snapshotter
         self.screenshotter = screenshotter
         if self.snapshotter:
@@ -122,21 +127,29 @@ class GameSelectScreen(Screen):
                 game.is_high_score = False
         self.log.info(f'scores for player: {scores_for_player}')
 
-        self._selected_index = 0
+        # self._selected_index = 0
 
         for event in self.buttons.get_key_presses():
             if event is NavEvent.BOTH:
                 self.log.info('backing out of game selector')
+                self._scroll = [0, 0]
+                self._selected_index = 0
+                self.reset_timeout()
                 return None
             if event is NavEvent.SELECT:
-                break
-
+                self.reset_timeout()
+                if self._selected_game.ready:
+                    break
             if event is NavEvent.LEFT:
                 move = -1
+                self.reset_timeout()
             elif event is NavEvent.RIGHT:
                 move = 1
-            else:
+                self.reset_timeout()
+            elif event is NavEvent.NONE:
                 move = 0
+                if self.timeout():
+                    return None
 
             self.scroll_by(move, max=len(self._games))
             self._selected_game = self._games[self._selected_index]
@@ -177,7 +190,7 @@ class GameSelectScreen(Screen):
             box_y = 0
         OFFSET = self.text.height // 2 + 8
         for parent in self._parents:
-            parent_color = 2
+            parent_color = 1
             for game in parent.children:
                 assert game.y is not None
                 color = 3 if (game is self._selected_game) else 1
@@ -193,13 +206,15 @@ class GameSelectScreen(Screen):
                         color = color
                     )
                 if not self.snapshotter and not self.screenshotter:
-                    if game.is_high_score:
-                        # col = RandomColor(2, color)
-                        col = ColorRamp(10, 2, lambda x: min(3, max(6-x, 2)))
+                    col = color
+                    if game.ready:
+                        text = str(game.high_score)
+                        if game.is_high_score:
+                            col = ColorRamp(10, 2, lambda x: min(3, max(6-x, 2)))
                     else:
-                        col = color
+                        text = game.msg
                     self.text.draw_text(
-                        text = str(game.high_score),
+                        text = text,
                         y = game.y - self._scroll[1] + OFFSET,
                         right = True,
                         x = self.text.width,

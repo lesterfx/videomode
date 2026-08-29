@@ -80,10 +80,11 @@ class HighScoreStore:
 
     def __init__(self, db_path: Optional[Path]=None) -> None:
         if db_path is None:
-            db_path = Path(os.path.dirname(__file__)) / 'scores.json'
+            db_path = Path(__file__).parent / 'scores.json'
         self.db_path = Path(db_path)
         self.log = logging.getLogger("HighScoreStore")
         self._data: dict[str, RomScores] = {}
+
         self.load()
 
     # ------------------------------------------------------------------

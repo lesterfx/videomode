@@ -8,6 +8,9 @@ from vm_types import EndDetectorConfig
 if typing.TYPE_CHECKING:
     from bridge import PinMAMEBridge
  
+class EndDetectorTimedOut(Exception):
+    pass
+
 class EndDetector:
     """
     Watches PinMAME internal state to detect when video mode ends.
@@ -90,6 +93,11 @@ class EndDetector:
                 #     f"{session_age:.4f} < grace period {self._config.grace_period_seconds}"
                 # )
                 return
+            if solenoid in self._config.ignored_solenoids:
+                # self.log.info(
+                #     f"solenoid {solenoid} ignored in {self._config.ignored_solenoids}"
+                # )
+                return
             if self._config.trigger_solenoid is not None and solenoid != self._config.trigger_solenoid:
                 self.log.info(
                     f"Ignore solenoid {solenoid} because is not trigger_solenoid {self._config.trigger_solenoid}"
@@ -98,11 +106,6 @@ class EndDetector:
             if bool(state) != bool(self._config.solenoid_trigger_state):
                 # self.log.info(
                 #     f"Ignore solenoid {solenoid} change because state is not {self._config.solenoid_trigger_state}"
-                # )
-                return
-            if solenoid in self._config.ignored_solenoids:
-                # self.log.info(
-                #     f"solenoid {solenoid} ignored in {self._config.ignored_solenoids}"
                 # )
                 return
 
@@ -119,7 +122,15 @@ class EndDetector:
     @property
     def ended(self) -> bool:
         """True once video mode end has been detected."""
-        return self._ended
+        return self._ended or self._timed_out
+        
+    @property
+    def _timed_out(self) -> bool:
+        timed_out = time.monotonic() > self._started_at + self._config.timeout
+        if timed_out:
+            self.log.warning('video mode timed out. check end detector configuration!')
+            raise EndDetectorTimedOut()
+        return timed_out
  
     @property
     def triggering_solenoid(self) -> Optional[int]:

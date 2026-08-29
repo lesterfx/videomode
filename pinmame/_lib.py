@@ -99,11 +99,13 @@ def _find_libpinmame(hint: Optional[str] = None) -> str:
         if path and Path(path).exists():
             return path
 
-    raise OSError(
-        "libpinmame shared library not found.\n"
-        "  • Build from source: https://github.com/vpinball/pinmame\n"
+    msg = (
+        "libpinmame shared library not found.\n" +
+        '\n'.join(map(str,candidates)) +
+        "  • Build from source: https://github.com/vpinball/pinmame\n" +
         "  • Or set LIBPINMAME_PATH=/path/to/libpinmame.so"
     )
+    raise OSError(msg)
 
 
 # ---------------------------------------------------------------------------

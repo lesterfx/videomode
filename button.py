@@ -107,6 +107,7 @@ class ButtonInput:
         pin_right: int = GPIO_PIN_RIGHT,
         pin_launch:  int = GPIO_PIN_LAUNCH,
     ) -> None:
+        self.log = logging.getLogger("Buttons")
         self.pin_left  = pin_left
         self.pin_right = pin_right
         self.pin_launch  = pin_launch
@@ -148,7 +149,7 @@ class ButtonInput:
             )
             self._stub_mode = True
  
-    def poll(self, timeout: float = 0.1) -> Optional[ButtonEvent]:
+    def poll(self, timeout: float = 0.0) -> Optional[ButtonEvent]:
         """
         Block for up to *timeout* seconds and return the next ButtonEvent,
         or None if no button was pressed in that window.
@@ -187,12 +188,27 @@ class ButtonInput:
         context (e.g. "confirm" / "back") — this method only reports
         what the hardware is doing.
         """
+
+        # pretend remnant presses are nothing until nothing is actually pressed
+        for event in self._get_key_presses():
+            yield NavEvent.NONE
+            if event == NavEvent.NONE:
+                break
+        for event in self._get_key_presses():
+            if event is not NavEvent.NONE:
+                self.log.info('passing event, %s', event)
+            yield event
+
+    def _get_key_presses(self):
         pressed: list[ButtonName] = []
         pressed_at = time.monotonic()
+        was_both = False
 
+        while self.poll(timeout=0):
+            pass
         while True:
             now = time.monotonic()
-            event = self.poll(timeout=0.1)
+            event = self.poll(timeout=0.0)
             if event:
                 if event.pressed:
                     if event.button not in pressed:
@@ -210,15 +226,23 @@ class ButtonInput:
 
             if self.is_held(ButtonName.LEFT_FLIPPER) and self.is_held(ButtonName.RIGHT_FLIPPER):
                 yield NavEvent.BOTH
+                was_both = True
 
-            if event and event.pressed:
+            elif event and event.pressed:
                 if event.button is ButtonName.LEFT_FLIPPER:
-                    yield NavEvent.LEFT
+                    if was_both:
+                        was_both = False
+                        yield NavEvent.NONE
+                    else:
+                        yield NavEvent.LEFT
                 elif event.button is ButtonName.RIGHT_FLIPPER:
-                    yield NavEvent.RIGHT
+                    if was_both:
+                        was_both = False
+                        yield NavEvent.NONE
+                    else:
+                        yield NavEvent.RIGHT
                 elif event.button is ButtonName.LAUNCH:
                     yield NavEvent.SELECT
-                    return
                 else:
                     self._log.error('unexpected event: %s', event)
                     yield NavEvent.NONE
@@ -286,7 +310,7 @@ if __name__ == '__main__':
     print("Button test — press LEFT_FLIPPER / RIGHT_FLIPPER / LAUNCH.  Ctrl-C to quit.")
     try:
         while True:
-            event = buttons.poll(timeout=0.1)
+            event = buttons.poll(timeout=0.0)
             if event is not None:
                 print(f"[{time.strftime('%H:%M:%S')}] {event.button.name} {event.pressed}")
     except KeyboardInterrupt:
