@@ -8,7 +8,7 @@ from typing import Optional
 from bridge import PinMAMEBridge
 from dmd_display import DMDDisplay
 from button import ButtonInput, ButtonEvent, ButtonName
-from vm_types import GameEntry, VideoModeResult
+from vm_types import GameEntry, SessionContext, ScreenState
 from end_detector import EndDetector, EndDetectorTimedOut
 
 
@@ -43,8 +43,8 @@ class VideoModeSession:
  
     def run(
         self,
-        game: GameEntry
-    ) -> VideoModeResult:
+        ctx: SessionContext
+    ) -> ScreenState:
         """
         Load snapshot (or free-run) and play until end detected.
  
@@ -54,49 +54,49 @@ class VideoModeSession:
                          interactive keyboard mode for snapshot capture.
                          Call signature: snapshotter() → None.
  
-        Returns:
-            VideoModeResult with score populated from PinMAMEBridge,
-            or score=None in snapshotter mode.
         """
+        game = ctx.game
         self.log.info('disabling dmd')
         # self.pinmame.dmd_callback = self.display.show_frame
-        self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
+        self.pinmame.dmd_callback = lambda x, y=0: None # self.log.info('discarding frame')
         assert game.parent.rom, f'{game.parent} has no rom defined - {game.parent.rom}'
         assert game.snapshot_index, f'{game} has no snapshot - {game.snapshot_index}'
         self.pinmame.load_game(game.parent.rom)
 
-        self.detector.reset(game.parent.end_detector_config, active=False)
-        self.load_snapshot(game.snapshot_index)
-
-        start_time = time.monotonic()
-        start_score = 0
         try:
+            self.display.set_bit_depth(game.parent.bit_depth)
+            self.detector.reset(game.parent.end_detector_config, active=False)
+            self.load_snapshot(game.snapshot_index)
+
+            start_time = time.monotonic()
+            start_score = 0
+
             while time.monotonic() < start_time + 10:
                 for switch in game.parent.active_switches:
                     self.pinmame.send_switch(switch, True)
-                self.log.info('start_score is %s', start_score)
-                score_now = self.pinmame.get_score()
                 time.sleep(0.1)
+                score_now = self.pinmame.get_score()
+                # self.log.info('start_score is %s', start_score)
                 if score_now is not None:
-                    start_score = max(start_score, score_now)
-                    if time.monotonic() < start_time + 3: continue
+                    start_score = score_now
+                    if time.monotonic() < start_time + 3:
+                        continue
                     break
             else:
-                raise ValueError('After 10 seconds, score is still not logged')
-        except:
-            self.pinmame.stop()
-            raise
+                raise ValueError('NO START SCORE AFTER 10 SECONDS')
 
-         # Wire DMD frames to the physical display for both modes.
-        self.log.info('setting up dmd for real now')
-        self.pinmame.dmd_callback = self.display.show_frame
-        self.display.label_getter = self.score_label_getter
-        self.detector.reset(game.parent.end_detector_config)
+            self.log.info('start score: %d', start_score)
 
-        self.log.debug("Entering normal play loop")
- 
-        score = None
-        try:
+            # Wire DMD frames to the physical display for both modes.
+            self.log.info('setting up dmd for real now')
+            self.pinmame.dmd_callback = self.display.show_frame
+            self.display.label_getter = self.score_label_getter
+            self.detector.reset(game.parent.end_detector_config)
+
+            self.log.debug("Entering normal play loop")
+    
+            score = None
+
             while True:
 
                 # --- end detection ------------------------------------------
@@ -127,21 +127,24 @@ class VideoModeSession:
                             self.log.info(f'launch [{game.parent.launch_switch}] {event.pressed}')
                             self.pinmame.send_switch(game.parent.launch_switch, event.pressed)
 
-        except EndDetectorTimedOut:
-            self.pinmame.stop()
-            return
-        except:
-            self.pinmame.stop()
-            raise
+            self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
+            self.display.clear()
 
-        self.pinmame.dmd_callback = lambda x, y=0: self.log.info('discarding frame')
-        self.display.clear()
-
-        try:
             while time.monotonic() < end_time + 5:
                 self.log.info('waiting for the end, score is %s', self.pinmame.get_score())
                 time.sleep(0.1)
+
+        except EndDetectorTimedOut:
+            self.log.error('game timed out. fix configuration, or increase timeout')
+            ctx.err = 'VIDEO MODE TIMEOUT'
+            return ScreenState.GAME_FAILED
+        except Exception as e:
+            ctx.err = str(e)
+            self.log.error('game error', exc_info=True)
+            return ScreenState.GAME_FAILED
+
         finally:
+            self.display.set_bit_depth(2)
             end_score = self.pinmame.get_score()
             self.pinmame.stop()
 
@@ -155,14 +158,16 @@ class VideoModeSession:
             duration
         )
  
-        return VideoModeResult(
-            game=game,
-            score=score,
-            duration_seconds=duration
-        )
+        ctx.game = game
+        ctx.score = score
+        return ScreenState.GAME_COMPLETED
 
     def score_label_getter(self):
         return f'score: {self.pinmame.get_score()}'
 
     def load_snapshot(self, index: int):
         self.pinmame.load_snapshot(index)
+
+def was_game_high_score(ctx: SessionContext) -> ScreenState:
+    return ScreenState.SAVE_HIGH_SCORE
+    return ScreenState.NO_HGIH_SCORE

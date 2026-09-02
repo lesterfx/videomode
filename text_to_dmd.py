@@ -59,21 +59,9 @@ class TextRender:
         background: bool = False,
         outline: bool = False,
         kerning: int = 1,
-        outline_color: int|Callable[[int, int, int], int] = 0
+        outline_color: int|Callable[[int, int, int], int] = 0,
+        minx: Optional[int] = None
     ) -> None:
-        
-        if outline:
-            assert isinstance(font, int)
-            self.draw_text(
-                text = text,
-                y = y-1,
-                x = x-1,
-                right = right,
-                center = center,
-                font = (font, 1),
-                color = outline_color,
-                kerning = kerning - 2
-            )
         
         y0 = y
 
@@ -87,15 +75,29 @@ class TextRender:
         for ch in str(text):
             for col in self._char_columns(ch, font=font):
                 cols.append((i, col))
-                i += 1
-            i += kerning
-        i -= 1
+                i += 1  # next column
+            i += kerning  # next character
+        i -= kerning  # no kerning after the last character
 
         start_x = x
         if right:
             start_x -= i
         elif center:
             start_x -= i // 2
+        if minx is not None:
+            start_x = max(start_x, minx)
+        
+        if outline:
+            assert isinstance(font, int)
+            self.draw_text(
+                text = text,
+                y = y-1,
+                x = start_x - 1,
+                font = (font, 1),
+                color = outline_color,
+                kerning = kerning - 2,
+            )
+
 
         for i, col_bits in cols:
             x = start_x + i

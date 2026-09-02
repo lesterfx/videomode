@@ -61,7 +61,7 @@ from typing import Optional
 from bridge import PinMAMEBridge
 from dmd_display import DMDDisplay
 from button import ButtonInput
-from vm_types import GameEntry, VideoModeResult
+from vm_types import GameEntry, ScreenState, SessionContext
 
 
 # ---------------------------------------------------------------------------
@@ -147,12 +147,15 @@ class Snapshotter:
     # Public entry point
     # ------------------------------------------------------------------
 
-    def run(self, game: GameEntry) -> VideoModeResult:
+    def run(
+        self,
+        ctx: SessionContext
+    ) -> ScreenState:
         """
         Free-run emulation with keyboard → switch-matrix control.
 
         Blocks until the operator presses Enter (snapshot saved) or Ctrl-C
-        (abort).  Returns a VideoModeResult with score=None in both cases.
+        (abort). 
         """
 
         self.game = game
@@ -230,12 +233,7 @@ class Snapshotter:
             self.display.label_getter = None
             self.log.info('stopping pinmame')
 
-        duration = time.monotonic() - start
-        return VideoModeResult(
-            game=game,
-            score=None,
-            duration_seconds=duration
-        )
+        return ScreenState.SNAPSHOTTED
 
     # ------------------------------------------------------------------
     # Snapshot capture — called when operator presses Enter

@@ -35,9 +35,12 @@ import json
 import logging
 import os
 from pathlib import Path
+import time
 from typing import Optional
 
-from vm_types import GameEntry, VideoModeResult
+from screens import Screen
+from text_to_dmd import RandomColor
+from vm_types import GameEntry, VideoModeResult, ScreenState, SessionContext
 
 @dataclass
 class RomScores:
@@ -172,7 +175,7 @@ class HighScoreStore:
             results[rom] = PlayerScoreEntry(
                 rom=rom,
                 score=score,
-                is_high_score=(score == entry.high_score),
+                is_high_score=(score and score == entry.high_score),
             )
         return results
 
@@ -180,7 +183,7 @@ class HighScoreStore:
     # Updates
     # ------------------------------------------------------------------
 
-    def submit_score(self, result: VideoModeResult, initials: Optional[str]) -> SubmitResult:
+    def submit_score(self, ctx: SessionContext) -> SubmitResult:
         """
         Record a score for a player on rom.
 
@@ -189,10 +192,13 @@ class HighScoreStore:
         Updates the rom's all-time high score if score beats it.
         Saves to disk immediately on any change.
         """
+        initials = ctx.initials
+        score = ctx.score
+        game = ctx.game
         
-        self.log.info('submitting score for %s: %s', initials, result)
-        rom = result.game.unique_name
-        score = result.score or 0
+        self.log.info('submitting score %s on %s for %s', score, game, initials)
+        rom = game.unique_name
+        score = score or 0
 
         entry = self._data.setdefault(rom, RomScores())
 
@@ -225,3 +231,42 @@ class HighScoreStore:
         )
         self.log.info('result %s', submitted_result)
         return submitted_result
+
+class SaveHighScoreScreen(Screen):
+    def __init__(self,
+        display: DMDDisplay,
+        buttons: ButtonInput,
+        scores: HighScoreStore,
+        players: PlayerStore
+    ):
+        super().__init__(display, buttons)
+        self.scores = scores
+        self.players = players
+
+    def run(self, ctx: SessionContext) -> ScreenState:
+        if not ctx.initials:
+            return ScreenState.NEED_HIGH_SCORE_INITIALS
+        self.players.add_player(ctx.initials)
+        result = self.scores.submit_score(ctx)
+        if result.is_new_high_score:
+            end_time = time.monotonic() + 10
+            while time.monotonic() < end_time:
+                self.text.box(0, 0, self.text.width, self.text.height, color=RandomColor(0,2))
+                self.text.draw_text(
+                    text = 'NEW HIGH SCORE',
+                    font = 15,
+                    center = True,
+                    x = self.text.width//2,
+                    y = 2,
+                    outline = 1
+                )
+                self.text.draw_text(
+                    text = f'{ctx.score:,}',
+                    font = 15,
+                    center = True,
+                    x = self.text.width//2,
+                    y = self.text.height//2,
+                    outline = 1
+                )
+                self.show()
+        return ScreenState.SAVED_HIGH_SCORE

@@ -6,8 +6,10 @@ from button import ButtonInput, NavEvent
 from dmd_display import DMDDisplay
 from screens import Screen
 from players import PlayerStore
-from initials import InitialsEntryScreen
+
 from text_to_dmd import RandomColor, ColorRamp
+
+from vm_types import ScreenState, SessionContext
 
 class Login(Enum):
     BACK = auto()
@@ -27,9 +29,12 @@ class PlayerLoginScreen(Screen):
     def __init__(self, display: DMDDisplay, buttons: ButtonInput, player_store: PlayerStore) -> None:
         super().__init__(display, buttons)
         self.player_store = player_store
-        self.initials_screen = InitialsEntryScreen(display, buttons)
 
-    def run(self) -> Optional[str]:
+    def run(
+        self,
+        ctx: SessionContext
+    ) -> ScreenState:
+        if ctx.initials: ScreenState.LOGGED_IN
         self.reset_timeout()
         SEPARATION = 31
         self.users = [(0, 'guest')]
@@ -50,7 +55,7 @@ class PlayerLoginScreen(Screen):
                 self.log.info('force log out')
                 self.scroll_target_y = self.text.height//2
                 if time.monotonic() - back_duration > 2:
-                    return Login.BACK
+                    return ScreenState.LOGIN_BACK
             elif event is NavEvent.SELECT:
                 if self.reset_timeout():
                     break
@@ -73,13 +78,17 @@ class PlayerLoginScreen(Screen):
 
         self._scroll = [0, 0]
         initials = self.users[self._selected_index % len(self.users)][1]
+        self._selected_index = 0
         if initials == 'new':
+            ctx.initials = None
+            return ScreenState.CREATE_USER
             initials = self.initials_screen.run('NEW PLAYER')
         elif initials == 'guest':
-            initials = None
-
-        self._selected_index = 0
-        return initials
+            ctx.initials = None
+            return ScreenState.GUEST_SELECTED
+        else:
+            ctx.initials = initials
+            return ScreenState.LOGGED_IN
 
     def draw(self, index: int) -> None:
         self.text.clear()

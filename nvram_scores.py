@@ -200,8 +200,7 @@ def get_player1_score(lib, rom_name: str) -> Optional[int]:
         byte_value = _read_byte(lib, address)
         if byte_value is None:
             log.warning(
-                "PinmameReadMainCPUByte failed at 0x%04X for %r — "
-                "is the emulator still running? (must read before stop())",
+                "PinmameReadMainCPUByte failed at 0x%04X for %r",
                 address, rom_name,
             )
             return None

@@ -11,6 +11,8 @@ from vm_types import GameEntry, GameParent, EndDetectorConfig
 from button import ButtonInput, NavEvent
 from dmd_display import DMDDisplay
 from screens import Screen
+from vm_types import SessionContext, ScreenState
+from high_scores import HighScoreStore
 
 # ---------------------------------------------------------------------------
 # Phase 4 — Game selector UI
@@ -28,13 +30,18 @@ class GameSelectScreen(Screen):
         caller's cue to fall back to the login screen)
     """
 
-    def __init__(self, display: DMDDisplay, buttons: ButtonInput) -> None:
+    def __init__(self,
+        display: DMDDisplay,
+        buttons: ButtonInput,
+        scores: HighScoreStore
+    ) -> None:
         super().__init__(display, buttons)
         self._parents: list[GameParent] = []
         self._games: list[GameEntry] = []
         self._selected_index = 0
+        self.scores = scores
 
-    def load_games(self, allow_no_snapshot: bool=False, only_without_screenshot: bool=False) -> None:
+    def load_games(self) -> None:
         self.screenshots = {key: bytes(int(ch) for ch in screenshot) for key, screenshot in json.load(open(Path(__file__).parent / 'screenshots.json')).items() if screenshot}
 
         entries = json.load(open(Path(__file__).parent / 'games.json'))
@@ -43,9 +50,6 @@ class GameSelectScreen(Screen):
             end_cfg = entry.pop('end_detector_config', {})
             entry['end_detector_config'] = EndDetectorConfig(**end_cfg)
             parent = GameParent(**entry)
-            if only_without_screenshot and self.screenshots.get(parent.rom):
-                self.log.warning(f'already have screenshot for: {parent}')
-                continue
             if not (Path.home() / '.pinmame' / 'roms' / (parent.rom + '.zip')).exists():
                 parent.rom = None
             if not videomodes:
@@ -77,6 +81,7 @@ class GameSelectScreen(Screen):
 
     @staticmethod
     def _format_game(score):
+        return f'{score:,}'
         unit = ''
         if score:
             for new_unit in 'KMB':
@@ -90,11 +95,8 @@ class GameSelectScreen(Screen):
 
     def run(
         self,
-        scores,
-        initials: Optional[str],
-        snapshotter: bool = False,
-        screenshotter: bool = False,
-    ) -> Optional[GameEntry]:
+        ctx: SessionContext
+    ) -> ScreenState:
         """
         Block until the user selects a game.
 
@@ -102,18 +104,18 @@ class GameSelectScreen(Screen):
         flippers (BOTH) — the caller's cue to return to the login screen.
         """
 
-        self.log.info('selecting for %s', initials or 'guest')
+        self.log.info('selecting for %s', ctx.initials or 'guest')
         self.reset_timeout()
-        self.snapshotter = snapshotter
-        self.screenshotter = screenshotter
+        self.snapshotter = ctx.snapshotting
+        self.screenshotter = ctx.screenshotting
         if self.snapshotter:
             title = 'MAKING ROM SNAPSHOT'
         elif self.screenshotter:
             title = 'SAVING SCREENSHOT'
         else:
-            title = f'{initials or "guest"} SELECT YOUR GAME'
+            title = f'{ctx.initials or "guest"} SELECT YOUR GAME'
 
-        scores_for_player = scores.scores_for_player(initials)
+        scores_for_player = self.scores.scores_for_player(ctx.initials)
 
         for game in self._games:
             game_score = None
@@ -135,11 +137,16 @@ class GameSelectScreen(Screen):
                 self._scroll = [0, 0]
                 self._selected_index = 0
                 self.reset_timeout()
-                return None
+                return ScreenState.LOGGED_OUT
             if event is NavEvent.SELECT:
                 self.reset_timeout()
+                ctx.game = self._selected_game
                 if self._selected_game.ready:
-                    break
+                    self.draw_loading()
+                    return ScreenState.GAME_SELECTED
+                else:
+                    ctx.err = self._selected_game.msg
+                    return ScreenState.GAME_FAILED
             if event is NavEvent.LEFT:
                 move = -1
                 self.reset_timeout()
@@ -149,7 +156,7 @@ class GameSelectScreen(Screen):
             elif event is NavEvent.NONE:
                 move = 0
                 if self.timeout():
-                    return None
+                    return ScreenState.LOGGED_OUT
 
             self.scroll_by(move, max=len(self._games))
             self._selected_game = self._games[self._selected_index]
@@ -159,10 +166,6 @@ class GameSelectScreen(Screen):
             y = self._selected_game.y
             assert y is not None
             self.animate_scroll_toward(0, y)
-
-        self.draw_loading()
-
-        return self._selected_game
 
     def draw_loading(self):
         game = self._selected_game

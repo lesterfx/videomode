@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+from enum import Enum, auto
 
 @dataclass
 class GameParent:
@@ -90,3 +91,29 @@ class EndDetectorConfig:
 
     timeout: float = 60
     # number of seconds after which the video mode did not end correctly
+
+@dataclass
+class SessionContext:
+    ''' carries data between screen states - nothing more '''
+    initials: Optional[str] = None
+    game: Optional[GameEntry] = None
+    snapshotting: Optional[bool] = False
+    screenshotting: Optional[bool] = False
+    score: Optional[int] = None
+    err: Optional[str] = None
+
+class ScreenState(Enum):
+    LOGGED_OUT = auto()
+    GAME_SELECTED = auto()
+    LOGIN_BACK = auto()
+    LOGGED_IN = auto()
+    SNAPSHOTTED = auto()
+    SETTINGS_DONE = auto()
+    CREATE_USER = auto()
+    GUEST_SELECTED = auto()
+    GAME_COMPLETED = auto()
+    SAVE_HIGH_SCORE = auto()
+    NEED_HIGH_SCORE_INITIALS = auto()
+    NO_HIGH_SCORE = auto()
+    GAME_FAILED = auto()
+    SAVED_HIGH_SCORE = auto()

@@ -13,6 +13,8 @@ from button import ButtonInput, NavEvent
 from dmd_display import DMDDisplay
 from screens import Screen
 
+from vm_types import ScreenState, SessionContext
+
 # ---------------------------------------------------------------------------
 # Phase 4 — Game selector UI
 # ---------------------------------------------------------------------------
@@ -36,16 +38,16 @@ class SettingsScreen(Screen):
         self.settings = settings
         self.keys = 'settings', 'brightness', 'volume', 'log in first'
 
-    def run(self):
+    def run(
+        self,
+        ctx: SessionContext
+    ) -> ScreenState:
         """
         Block until the user selects a game.
 
         Returns the chosen GameEntry, or None if the person chorded both
         flippers (BOTH) — the caller's cue to return to the login screen.
         """
-        self.entries += 1
-        if self.entries == 1:
-            return
 
         self._selected_index = 0
         self._active = False
@@ -57,11 +59,11 @@ class SettingsScreen(Screen):
                     self.reset()
                     self._active = False
                 else:
-                    return None
+                    return ScreenState.SETTINGS_DONE
             if event is NavEvent.SELECT:
                 if self._selected_index == 0:
                     self.log.info('back selected')
-                    return None
+                    return ScreenState.SETTINGS_DONE
                 elif self._active:
                     key = self.keys[self._selected_index]
                     self.settings.set(key, self.values[key])
@@ -83,7 +85,7 @@ class SettingsScreen(Screen):
 
             self.draw_frame()
             
-        self.log.info('end of loop')
+        return ScreenState.SETTINGS_DONE
 
     def move_index(self, by):
         self._selected_index = (self._selected_index + by) % len(self.keys)
@@ -168,3 +170,4 @@ class SettingsScreen(Screen):
         )
 
         self.show()
+

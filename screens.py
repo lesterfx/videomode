@@ -26,6 +26,7 @@ from dmd_display import DMDDisplay
 from players import PlayerStore
 from text_to_dmd import TextRender
 
+from vm_types import ScreenState
 
 # ---------------------------------------------------------------------------
 # Screen — shared substrate
@@ -95,3 +96,40 @@ class Screen:
         was_timed_out = self.timeout()
         self._timeout = time.monotonic()
         return not was_timed_out
+
+class GenericMessage(Screen):
+    def __call__(self, message: str, return_value: ScreenState):
+        def run(ctx):
+            font = 15
+            end_time = time.monotonic() + 5
+            while time.monotonic() < end_time:
+                self.text.draw_text(
+                    text = message,
+                    font = font,
+                    x = self.text.width//2,
+                    y = self.text.height//2 - font//2,
+                    color = 0,
+                    outline = True,
+                    outline_color = 3,
+                    center = True,
+                    kerning = 5
+                )
+                if ctx.err:
+                    self.text.draw_text(
+                        text = ctx.err,
+                        font = 5,
+                        x = self.text.width//2,
+                        y = self.text.height//2 + font//2 + 2,
+                        color = 3,
+                        center = True,
+                        minx = 0
+                    )
+                self.show()
+                time.sleep(0.4)
+                self.text.clear()
+                self.show()
+                time.sleep(0.1)
+
+            ctx.err = None
+            return return_value
+        return run

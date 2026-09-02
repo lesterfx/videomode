@@ -18,9 +18,27 @@
     }
   },
   "afm_113b|1": {
+    "high_score": 530000000,
+    "players": {
+      "MHL": 530000000
+    }
+  },
+  "br_l4|3": {
     "high_score": 0,
     "players": {
       "MHL": 0
+    }
+  },
+  "br_l4|1": {
+    "high_score": 0,
+    "players": {
+      "MHL": -10010
+    }
+  },
+  "cftbl_l2|1": {
+    "high_score": 0,
+    "players": {
+      "MHL": -1300000
     }
   }
 }

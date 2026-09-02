@@ -22,7 +22,8 @@
         "launch_switch": 11,
         "end_detector_config": {
             "grace_period_seconds": 5,
-            "trigger_solenoid": 31
+            "trigger_solenoid": 31,
+            "timeout": 100
         },
         "videomodes": [
             {

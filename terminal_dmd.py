@@ -211,6 +211,7 @@ def print_ansi_frame(
         print(f"│{row}│", end='\r\n')
 
     print(f"+{sep}+", end='\r\n')
+    time.sleep(0.1)
 
 
 
