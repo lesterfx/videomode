@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 import logging
 from enum import Enum, auto
-from typing import Optional
+from typing import Generator, NoReturn, Optional
 import queue
 import time
 
@@ -167,7 +167,7 @@ class ButtonInput:
         """True if *button* is currently pressed down."""
         return self._held[button]
 
-    def get_key_presses(self):
+    def get_key_presses(self) -> Generator[NavEvent, None, NoReturn]:
         """
         Generator for menu/list navigation.
 
@@ -199,7 +199,10 @@ class ButtonInput:
                 self.log.info('passing event, %s', event)
             yield event
 
-    def _get_key_presses(self):
+        raise Exception('no return...')
+        
+
+    def _get_key_presses(self) -> Generator[NavEvent, None, NoReturn]:
         pressed: list[ButtonName] = []
         pressed_at = time.monotonic()
         was_both = False

@@ -38,9 +38,12 @@ from pathlib import Path
 import time
 from typing import Optional
 
+from button import ButtonInput
+from dmd_display import DMDDisplay
+from players import PlayerStore
 from screens import Screen
 from text_to_dmd import RandomColor
-from vm_types import GameEntry, VideoModeResult, ScreenState, SessionContext
+from vm_types import ScreenState, SessionContext
 
 @dataclass
 class RomScores:
@@ -175,7 +178,7 @@ class HighScoreStore:
             results[rom] = PlayerScoreEntry(
                 rom=rom,
                 score=score,
-                is_high_score=(score and score == entry.high_score),
+                is_high_score=(score == entry.high_score),
             )
         return results
 
@@ -193,8 +196,10 @@ class HighScoreStore:
         Saves to disk immediately on any change.
         """
         initials = ctx.initials
+        assert initials is not None, 'no initials defined to submit_score'
         score = ctx.score
         game = ctx.game
+        assert game is not None, 'no game defined to submit_score'
         
         self.log.info('submitting score %s on %s for %s', score, game, initials)
         rom = game.unique_name
@@ -258,7 +263,7 @@ class SaveHighScoreScreen(Screen):
                     center = True,
                     x = self.text.width//2,
                     y = 2,
-                    outline = 1
+                    outline = True
                 )
                 self.text.draw_text(
                     text = f'{ctx.score:,}',
@@ -266,7 +271,7 @@ class SaveHighScoreScreen(Screen):
                     center = True,
                     x = self.text.width//2,
                     y = self.text.height//2,
-                    outline = 1
+                    outline = True
                 )
                 self.show()
         return ScreenState.SAVED_HIGH_SCORE

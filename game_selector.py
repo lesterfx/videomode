@@ -50,7 +50,7 @@ class GameSelectScreen(Screen):
             end_cfg = entry.pop('end_detector_config', {})
             entry['end_detector_config'] = EndDetectorConfig(**end_cfg)
             parent = GameParent(**entry)
-            if not (Path.home() / '.pinmame' / 'roms' / (parent.rom + '.zip')).exists():
+            if not parent.rom or not (Path.home() / '.pinmame' / 'roms' / (parent.rom + '.zip')).exists():
                 parent.rom = None
             if not videomodes:
                 self.log.warning(f'NO VIDEO MODES CONFIGURED: {parent}')
@@ -118,14 +118,11 @@ class GameSelectScreen(Screen):
         scores_for_player = self.scores.scores_for_player(ctx.initials)
 
         for game in self._games:
-            game_score = None
             if score := scores_for_player.get(game.unique_name):
-                game_score = score.score
-                game.high_score = self._format_game(game_score)
+                game.high_score = score.score
                 game.is_high_score = score.is_high_score
             else:
-                # self.log.info('no high score for %s in %s', game.unique_name, scores_for_player)
-                game.high_score = '0'
+                game.high_score = 0
                 game.is_high_score = False
         self.log.info(f'scores for player: {scores_for_player}')
 
@@ -166,6 +163,8 @@ class GameSelectScreen(Screen):
             y = self._selected_game.y
             assert y is not None
             self.animate_scroll_toward(0, y)
+
+        raise Exception('no return...')
 
     def draw_loading(self):
         game = self._selected_game
@@ -211,7 +210,7 @@ class GameSelectScreen(Screen):
                 if not self.snapshotter and not self.screenshotter:
                     col = color
                     if game.ready:
-                        text = str(game.high_score)
+                        text = self._format_game(game.high_score)
                         if game.is_high_score:
                             col = ColorRamp(10, 2, lambda x: min(3, max(6-x, 2)))
                     else:

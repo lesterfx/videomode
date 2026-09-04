@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from abc import abstractmethod
 import string
 
 from typing import Optional
@@ -25,12 +26,27 @@ class InitialsEntryScreenBase(Screen):
     on '\t').
     """
 
-    def run(
+    _COLS: int
+    UNDERLINE_Y: int
+    CHARACTER_Y: int
+    TITLE_CENTER: int
+    SPACING_Y: int
+    SPACING_X: int
+    @abstractmethod
+    def get_option_position(self, i: int, ch: str) -> dict: pass
+    @abstractmethod
+    def move_right(self) -> None: pass
+    @abstractmethod
+    def move_left(self) -> None: pass
+    @abstractmethod
+    def scroll(self) -> None: pass
+
+    def run_bool(
         self,
         ctx: SessionContext,
         title: str,
         subtitle: Optional[str] = None
-    ) -> ScreenState:
+    ) -> bool:
 
         self.options = []
         for i, ch in enumerate(string.ascii_uppercase + '\r\t'):
@@ -119,8 +135,6 @@ class InitialsEntryScreenBase(Screen):
 
         while True:
             for event in self.buttons.get_key_presses():
-                # if event is NavEvent.BOTH:
-                #     return None
                 if event is NavEvent.SELECT:
                     break
 
@@ -234,7 +248,7 @@ InitialsEntryScreen = InitialsEntryScreenRow
 class HighScoreInitialsEntry(InitialsEntryScreen):
     def run(self, ctx):
         if not ctx.initials:
-            result = super().run(ctx, 'ENTER INITIALS', f'{ctx.score:,}')
+            result = self.run_bool(ctx, 'ENTER INITIALS', f'{ctx.score:,}')
         if result:
             return ScreenState.SAVE_HIGH_SCORE
         else:
@@ -243,7 +257,7 @@ class HighScoreInitialsEntry(InitialsEntryScreen):
 class CreateUserInitialsEntry(InitialsEntryScreen):
     def run(self, ctx):
         assert not ctx.initials
-        result = super().run(ctx, 'CREATE PLAYER')
+        result = super().run_bool(ctx, 'CREATE PLAYER')
         if result:
             return ScreenState.LOGGED_IN
         else:

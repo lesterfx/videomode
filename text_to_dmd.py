@@ -161,31 +161,3 @@ class TextRender:
 
     def image(self, data: bytes|bytearray) -> None:
         self.frame[:] = data
-
-# ---------------------------------------------------------------------------
-# CLI self-test
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    from dmd_display import DMDDisplay
-    import time
-    logging.basicConfig(level=logging.DEBUG,
-                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-
-    display = DMDDisplay(terminal_mode=True, label="SELFTEST")
-    text = TextRender(width=128, height=32, depth=2)
-
-    text.clear()
-    for font_size in sorted(FONT):
-        text.clear()
-        for i, line in enumerate(['the quick brown fox', 'jumps over the lazy dog']):
-            text.draw_text(
-                text = line,
-                font = font_size,
-                x = 64,
-                center = True,
-                y = i*font_size,
-                color = 1
-            )
-        display.show_frame(text.frame)
-        time.sleep(2)

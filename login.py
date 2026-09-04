@@ -34,7 +34,7 @@ class PlayerLoginScreen(Screen):
         self,
         ctx: SessionContext
     ) -> ScreenState:
-        if ctx.initials: ScreenState.LOGGED_IN
+        if ctx.initials: return ScreenState.LOGGED_IN
         self.reset_timeout()
         SEPARATION = 31
         self.users = [(0, 'guest')]
@@ -120,31 +120,3 @@ class PlayerLoginScreen(Screen):
                 color = 3 if (i==index) else 1
             )
         self.show()
-
-# ---------------------------------------------------------------------------
-# LoginSession
-# ---------------------------------------------------------------------------
-
-class LoginSession:
-    """
-    Context manager wrapping PlayerLoginScreen.run() so callers get a
-    scoped `initials` value from a single, clear entry/exit point:
-
-        with LoginSession(self.login) as initials:
-            ...play games as `initials`...
-
-    There's nothing to release today, but this gives the login flow one
-    place to grow into (e.g. clearing the DMD on the way out) without
-    touching every call site again.
-    """
-
-    def __init__(self, login_screen: PlayerLoginScreen) -> None:
-        self.login_screen = login_screen
-        self.initials: Optional[str] = None
-
-    def __enter__(self) -> Optional[str]:
-        self.initials = self.login_screen.run()
-        return self.initials
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
-        return False

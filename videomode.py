@@ -31,11 +31,9 @@ Login/selection flow:
 """
 
 import argparse
-import contextlib
 import logging
 from pathlib import Path
 import sys
-from typing import Optional
 
 
 from bridge import PinMAMEBridge
@@ -43,7 +41,7 @@ from button import ButtonInput
 from dmd_display import DMDDisplay
 from game_selector import GameSelectScreen
 from settings_screen import SettingsScreen
-from login import PlayerLoginScreen, Login
+from login import PlayerLoginScreen
 from players import PlayerStore
 from rom_session import VideoModeSession, was_game_high_score
 from snapshotter import Snapshotter
@@ -51,7 +49,7 @@ from end_detector import EndDetector
 from high_scores import HighScoreStore, SaveHighScoreScreen
 from settings import SettingsStore
 from initials import HighScoreInitialsEntry, CreateUserInitialsEntry
-from vm_types import GameEntry, GameParent, ScreenState, SessionContext, EndDetectorConfig
+from vm_types import ScreenState, SessionContext
 from screens import GenericMessage
 
 # ---------------------------------------------------------------------------
@@ -123,7 +121,13 @@ class PinMAMEPlayer:
             Session = Snapshotter
         else:
             Session = VideoModeSession
-        self.session = Session(self.pinmame, self.display, self.buttons, self.detector)
+        self.session = Session(
+            pinmame = self.pinmame,
+            display = self.display,
+            buttons = self.buttons,
+            detector = self.detector,
+            screenshotting = self.screenshotting
+        )
         self.players = PlayerStore()
         self.login = PlayerLoginScreen(self.display, self.buttons, self.players)
         self.scores = HighScoreStore()
@@ -137,7 +141,6 @@ class PinMAMEPlayer:
         self.log.info("Starting up")
         self.pinmame.connect()
         self.buttons.start()
-        # self.game_select.load_games(self.snapshotting or self.screenshotting, self.screenshotting)
         self.game_select.load_games()
 
     def shutdown(self) -> None:
@@ -146,29 +149,29 @@ class PinMAMEPlayer:
         self.buttons.stop()
         self.display.shutdown()
 
-    def log_out_after_game(self, ctx):
-        if not self.settings.get('log in first'):
+    def log_out_after_game(self, ctx) -> ScreenState:
+        if not self.settings.get('log in first') or not ctx.initials:
             ctx.initials = None
-            return ScreenState.LOGGED_OUT
+            return ScreenState.GUEST_SELECTED
         else:
-            return ScreenState.NO_HIGH_SCORE
+            return ScreenState.LOGGED_IN
 
     def run(self) -> None:
         SCREENS_NETWORK = {
-            ScreenState.LOGGED_OUT: self.login.run,
-            ScreenState.GAME_SELECTED: self.session.run,
-            ScreenState.LOGIN_BACK: self.settings_screen.run,
-            ScreenState.LOGGED_IN: self.game_select.run,
-            ScreenState.SNAPSHOTTED: self.game_select.run,
-            ScreenState.SETTINGS_DONE: self.login.run,
-            ScreenState.CREATE_USER: self.create_user.run,
-            ScreenState.GUEST_SELECTED: self.game_select.run,
-            ScreenState.GAME_COMPLETED: was_game_high_score,
-            ScreenState.NEED_HIGH_SCORE_INITIALS: self.high_score_initials.run,
-            ScreenState.SAVE_HIGH_SCORE: self.save_high_score.run,
-            ScreenState.NO_HIGH_SCORE: self.login.run,
-            ScreenState.GAME_FAILED: self.generic_message('ROM ERROR', ScreenState.NO_HIGH_SCORE),
-            ScreenState.SAVED_HIGH_SCORE: self.log_out_after_game,
+            ScreenState.LOGGED_OUT: self.login.run,  # LOGGED_IN, LOGIN_BACK, CREATE_USER, GUEST_SELECTED, LOGGED_IN
+            ScreenState.GAME_SELECTED: self.session.run,  # SNAPSHOTTED, GAME_FAILED, GAME_COMPLETED, SAVE_HIGH_SCORE, NO_HIGH_SCORE
+            ScreenState.LOGIN_BACK: self.settings_screen.run,  # SETTINGS_DONE
+            ScreenState.LOGGED_IN: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED, LOGGED_OUT
+            ScreenState.SNAPSHOTTED: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.SETTINGS_DONE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.CREATE_USER: self.create_user.run,  # LOGGED_IN, LOGGED_OUT
+            ScreenState.GUEST_SELECTED: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED, LOGGED_OUT
+            ScreenState.GAME_COMPLETED: was_game_high_score,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
+            ScreenState.NEED_HIGH_SCORE_INITIALS: self.high_score_initials.run,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
+            ScreenState.SAVE_HIGH_SCORE: self.save_high_score.run,  # NEED_HIGH_SCORE_INITIALS, SAVED_HIGH_SCORE
+            ScreenState.NO_HIGH_SCORE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.GAME_FAILED: self.generic_message('ROM ERROR', ScreenState.NO_HIGH_SCORE),  # NO_HIGH_SCORE
+            ScreenState.SAVED_HIGH_SCORE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
         }
 
         self.startup()

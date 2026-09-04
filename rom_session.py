@@ -7,8 +7,8 @@ from typing import Optional
 
 from bridge import PinMAMEBridge
 from dmd_display import DMDDisplay
-from button import ButtonInput, ButtonEvent, ButtonName
-from vm_types import GameEntry, SessionContext, ScreenState
+from button import ButtonInput, ButtonName
+from vm_types import SessionContext, ScreenState
 from end_detector import EndDetector, EndDetectorTimedOut
 
 
@@ -29,7 +29,8 @@ class VideoModeSession:
         pinmame:  PinMAMEBridge,
         display:  DMDDisplay,
         buttons:  ButtonInput,
-        detector: "EndDetector"
+        detector: EndDetector,
+        **kw
     ) -> None:
         self.pinmame  = pinmame
         self.display  = display
@@ -56,6 +57,7 @@ class VideoModeSession:
  
         """
         game = ctx.game
+        assert game
         self.log.info('disabling dmd')
         # self.pinmame.dmd_callback = self.display.show_frame
         self.pinmame.dmd_callback = lambda x, y=0: None # self.log.info('discarding frame')
@@ -159,7 +161,7 @@ class VideoModeSession:
         )
  
         ctx.game = game
-        ctx.score = score
+        ctx.score = score or 0
         return ScreenState.GAME_COMPLETED
 
     def score_label_getter(self):
@@ -169,5 +171,8 @@ class VideoModeSession:
         self.pinmame.load_snapshot(index)
 
 def was_game_high_score(ctx: SessionContext) -> ScreenState:
-    return ScreenState.SAVE_HIGH_SCORE
-    return ScreenState.NO_HGIH_SCORE
+    assert ctx.game
+    if ctx.score > ctx.game.high_score:
+        return ScreenState.SAVE_HIGH_SCORE
+    else:
+        return ScreenState.NO_HIGH_SCORE

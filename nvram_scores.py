@@ -60,6 +60,7 @@ def _load_index() -> dict:
     global _index_cache
     if _index_cache is None:
         _index_cache = json.loads((_MAPS_DIR / "index.json").read_text())
+    assert isinstance(_index_cache, dict), 'index.json should store a dict'
     return _index_cache
 
 

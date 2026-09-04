@@ -88,12 +88,14 @@ class Snapshotter:
 
     _SNAPSHOTTER_CHARS: str = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?"
 
+    game: GameEntry
     def __init__(
         self,
         pinmame:  PinMAMEBridge,
         display:  DMDDisplay,
         buttons:  ButtonInput,
-        screenshotting: bool = False
+        screenshotting: bool = False,
+        **kw
     ) -> None:
         self.pinmame  = pinmame
         self.display  = display
@@ -158,15 +160,16 @@ class Snapshotter:
         (abort). 
         """
 
-        self.game = game
+        assert ctx.game, 'no game provided to snapshotter'
+        self.game = ctx.game
 
-        self.log.info("Snapshotter mode for %s — no snapshot loaded", game.parent.rom)
+        self.log.info("Snapshotter mode for %s — no snapshot loaded", self.game.parent.rom)
         self.pinmame.dmd_callback = self.display.show_frame
 
         # Start emulation from cold boot (no snapshot to restore yet).
         # connect() is assumed already called by the caller / startup().
-        assert game.parent.rom, f"game {game.parent} has no rom"
-        self.pinmame.load_game(game.parent.rom)
+        assert self.game.parent.rom, f"game {self.game.parent} has no rom"
+        self.pinmame.load_game(self.game.parent.rom)
         self.pinmame.state_callback = self.on_state_update
 
         self.active_switches: set[int] = set()

@@ -1,71 +1,6 @@
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 from enum import Enum, auto
-
-@dataclass
-class GameParent:
-    """One entry in the game selection list."""
-
-    name: str
-    # display name shown on DMD
-
-    rom: Optional[str] = None
-    # ROM identifier passed to PinMAME
-
-    left_flipper_switch: Optional[int] = None
-    right_flipper_switch: Optional[int] = None
-    launch_switch: Optional[int] = None
-    # switch matrix value for the flipper and launch buttons used in video mode
-
-    children: list['GameEntry'] = field(default_factory=list)
-    # populated later, list of child GameEntry instances
-
-    active_switches: list[int] = field(default_factory=list)
-    # switches which should be set active during video mode session
-
-    end_detector_config: Optional['EndDetectorConfig'] = None
-
-    platform: str = 'wpc'
-
-    y: Optional[int] = None
-
-    bit_depth: [int] = 2
-
-    def __str__(self):
-        return (self.name or 'unknown game').replace('\n', ' ')
-
-
-@dataclass
-class GameEntry:
-    parent: GameParent
-
-    snapshot_index:int
-
-    ready: bool
-
-    name: str = ''
-
-    notes: Optional[str] = None
-
-    y: Optional[int] = None
-
-    high_score: str = ''
-    is_high_score: bool = False
-
-    @property
-    def unique_name(self):
-        return f'{self.parent.rom}|{self.snapshot_index}'
-
-    def __str__(self):
-        return f"{self.name.replace('\n', ' ')} ({self.snapshot_index})"
-
-@dataclass
-class VideoModeResult:
-    """Outcome of a single video mode session."""
-    game: GameEntry
-    score: Optional[int]  # int if actual score, else None
-    duration_seconds: float
 
 @dataclass
 class EndDetectorConfig:
@@ -93,13 +28,80 @@ class EndDetectorConfig:
     # number of seconds after which the video mode did not end correctly
 
 @dataclass
+class GameParent:
+    """One entry in the game selection list."""
+
+    name: str
+    # display name shown on DMD
+
+    rom: Optional[str] = None
+    # ROM identifier passed to PinMAME
+
+    left_flipper_switch: Optional[int] = None
+    right_flipper_switch: Optional[int] = None
+    launch_switch: Optional[int] = None
+    # switch matrix value for the flipper and launch buttons used in video mode
+
+    children: list['GameEntry'] = field(default_factory=list)
+    # populated later, list of child GameEntry instances
+
+    active_switches: list[int] = field(default_factory=list)
+    # switches which should be set active during video mode session
+
+    end_detector_config: EndDetectorConfig = field(default_factory=EndDetectorConfig)
+
+    platform: str = 'wpc'
+
+    y: Optional[int] = None
+
+    bit_depth: int = 2
+
+    def __str__(self):
+        return (self.name or 'unknown game').replace('\n', ' ')
+
+
+@dataclass
+class GameEntry:
+    parent: GameParent
+
+    snapshot_index:int
+
+    ready: bool
+
+    name: str = ''
+
+    notes: Optional[str] = None
+
+    y: Optional[int] = None
+
+    high_score: int = 0
+    is_high_score: bool = False
+
+    msg: str = ''
+
+    @property
+    def unique_name(self):
+        return f'{self.parent.rom}|{self.snapshot_index}'
+
+    def __str__(self):
+        return f"{self.name.replace('\n', ' ')} ({self.snapshot_index})"
+
+
+@dataclass
+class VideoModeResult:
+    """Outcome of a single video mode session."""
+    game: GameEntry
+    score: Optional[int]  # int if actual score, else None
+    duration_seconds: float
+
+@dataclass
 class SessionContext:
     ''' carries data between screen states - nothing more '''
     initials: Optional[str] = None
     game: Optional[GameEntry] = None
     snapshotting: Optional[bool] = False
     screenshotting: Optional[bool] = False
-    score: Optional[int] = None
+    score: int = 0
     err: Optional[str] = None
 
 class ScreenState(Enum):
