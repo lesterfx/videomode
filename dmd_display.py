@@ -196,8 +196,8 @@ class DMDDisplay:
         self.frames_since_last_fps += 1
         now = time.monotonic()
         if now > self.last_fps + 1:
-            if not self.label_getter:
-                self.log.info('%d fps', self.frames_since_last_fps)
+            # if not self.label_getter:
+                # self.log.info('%d fps', self.frames_since_last_fps)
             self.last_fps = now
             self.frames_since_last_fps = 0
 

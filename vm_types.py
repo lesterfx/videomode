@@ -107,7 +107,7 @@ class SessionContext:
 class ScreenState(Enum):
     LOGGED_OUT = auto()
     GAME_SELECTED = auto()
-    LOGIN_BACK = auto()
+    ENTER_SETTINGS = auto()
     LOGGED_IN = auto()
     SNAPSHOTTED = auto()
     SETTINGS_DONE = auto()

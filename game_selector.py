@@ -129,22 +129,27 @@ class GameSelectScreen(Screen):
         # self._selected_index = 0
 
         for event in self.buttons.get_key_presses():
+            if event is not NavEvent.NONE:
+                self.log.info(event)
             if event is NavEvent.BOTH:
                 self.log.info('backing out of game selector')
                 self._scroll = [0, 0]
                 self._selected_index = 0
                 self.reset_timeout()
                 return ScreenState.LOGGED_OUT
-            if event is NavEvent.SELECT:
+            elif event is NavEvent.BOTH_LONG:
+                self.log.info('settings')
+                return ScreenState.ENTER_SETTINGS
+            elif event is NavEvent.SELECT:
                 self.reset_timeout()
                 ctx.game = self._selected_game
-                if self._selected_game.ready:
+                if self._selected_game.ready or self.snapshotter:
                     self.draw_loading()
                     return ScreenState.GAME_SELECTED
                 else:
                     ctx.err = self._selected_game.msg
                     return ScreenState.GAME_FAILED
-            if event is NavEvent.LEFT:
+            elif event is NavEvent.LEFT:
                 move = -1
                 self.reset_timeout()
             elif event is NavEvent.RIGHT:

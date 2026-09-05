@@ -28,6 +28,10 @@ DEBOUNCE_S = 0.03   # 50 ms; raise to ~0.08 if double-fires occur; lower to ~0.0
 #: fresh press, so holding a flipper down keeps scrolling a menu.
 REPEAT_INTERVAL_S = 0.3
 
+#: How long both flippers must be held together before BOTH_LONG fires, on
+#: top of the immediate BOTH that fires as soon as the chord is detected.
+BOTH_LONG_HOLD_S = 2.0
+
 class ButtonName(Enum):
     LEFT_FLIPPER   = auto()
     RIGHT_FLIPPER  = auto()
@@ -38,24 +42,31 @@ class NavEvent(Enum):
     """
     Menu-navigation signal produced by ButtonInput.get_key_presses().
 
-    NONE   — nothing changed on this tick (still useful to callers that
-             redraw/animate every tick regardless of input)
-    LEFT   — left flipper pressed (or held past REPEAT_INTERVAL_S)
-    RIGHT  — right flipper pressed (or held past REPEAT_INTERVAL_S)
-    SELECT — launch button pressed; terminal — get_key_presses() returns
-             after yielding this once
-    BOTH   — left and right flippers are held down at the same time;
-             terminal — get_key_presses() returns after yielding this once
+    NONE      — nothing changed on this tick (still useful to callers that
+                redraw/animate every tick regardless of input)
+    LEFT      — left flipper pressed (or held past REPEAT_INTERVAL_S)
+    RIGHT     — right flipper pressed (or held past REPEAT_INTERVAL_S)
+    SELECT    — launch button pressed; terminal — get_key_presses() returns
+                after yielding this once
+    BOTH      — left and right flippers are held down at the same time;
+                fires immediately on the chord and again on every tick for
+                as long as both remain held
+    BOTH_LONG — fires once, in addition to BOTH, the moment the chord has
+                been held continuously for BOTH_LONG_HOLD_S seconds. Does
+                not repeat — callers wanting a one-shot "long hold" signal
+                (e.g. force logout) should key off this instead of timing
+                BOTH themselves.
 
-    BOTH only reports that the chord happened. What it *means* — back,
-    cancel, or nothing at all — is entirely up to the caller; ButtonInput
-    has no opinion about menu semantics.
+    BOTH/BOTH_LONG only report that the chord happened. What it *means* —
+    back, cancel, force logout, or nothing at all — is entirely up to the
+    caller; ButtonInput has no opinion about menu semantics.
     """
-    NONE   = auto()
-    LEFT   = auto()
-    RIGHT  = auto()
-    SELECT = auto()
-    BOTH   = auto()
+    NONE      = auto()
+    LEFT      = auto()
+    RIGHT     = auto()
+    SELECT    = auto()
+    BOTH      = auto()
+    BOTH_LONG = auto()
 
 
 @dataclass(frozen=True)
@@ -91,8 +102,8 @@ class ButtonInput:
     stdin-driven stub so the rest of the stack can be tested on a desktop. The
     stub cannot detect real key-up over a terminal, so each keypress there is
     treated as an instantaneous press+release pair — it can't simulate holds,
-    which also means get_key_presses()'s NavEvent.BOTH chord can't be
-    exercised from the stub; it requires real, overlapping GPIO holds.
+    which also means get_key_presses()'s NavEvent.BOTH/BOTH_LONG chords can't
+    be exercised from the stub; they require real, overlapping GPIO holds.
 
     GPIO wiring (BCM, active-low, internal pull-up):
       pin_left  (default 25) → left flipper  → SCROLL_UP
@@ -197,6 +208,8 @@ class ButtonInput:
         for event in self._get_key_presses():
             if event is not NavEvent.NONE:
                 self.log.info('passing event, %s', event)
+                if event is NavEvent.BOTH_LONG:
+                    self.log.info('both long!')
             yield event
 
         raise Exception('no return...')
@@ -206,6 +219,12 @@ class ButtonInput:
         pressed: list[ButtonName] = []
         pressed_at = time.monotonic()
         was_both = False
+
+        # Tracks how long the BOTH chord has been continuously held, so
+        # BOTH_LONG can fire exactly once per chord rather than repeating
+        # like BOTH does. Reset to None the instant the chord breaks.
+        both_since: Optional[float] = None
+        both_long_fired = False
 
         while self.poll(timeout=0):
             pass
@@ -227,9 +246,26 @@ class ButtonInput:
                 pressed.append(button)
                 event = ButtonEvent(button, True)
 
-            if self.is_held(ButtonName.LEFT_FLIPPER) and self.is_held(ButtonName.RIGHT_FLIPPER):
-                yield NavEvent.BOTH
-                was_both = True
+            both_held = self.is_held(ButtonName.LEFT_FLIPPER) and self.is_held(ButtonName.RIGHT_FLIPPER)
+
+            if not both_held:
+                # Chord broken (or never started) — clear long-hold tracking
+                # so the next chord has to earn BOTH_LONG from scratch.
+                if both_since:
+                    yield NavEvent.BOTH
+                both_since = None
+                both_long_fired = False
+
+            if both_held:
+                if both_since is None:
+                    both_since = now   # chord just started — BOTH fires now
+                if not both_long_fired and now - both_since >= BOTH_LONG_HOLD_S:
+                    both_long_fired = True
+                    was_both = True
+                    yield NavEvent.BOTH_LONG
+                else:
+                    was_both = True
+                    # yield NavEvent.BOTH
 
             elif event and event.pressed:
                 if event.button is ButtonName.LEFT_FLIPPER:

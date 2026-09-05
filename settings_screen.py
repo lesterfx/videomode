@@ -113,7 +113,6 @@ class SettingsScreen(Screen):
             self.display.set_brightness(value)
 
     def _value_str(self, value):
-        self.log.info('value is %s, a %s', value, type(value))
         if isinstance(value, bool):
             if value:
                 return 'YES'

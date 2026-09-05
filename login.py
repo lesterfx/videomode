@@ -34,7 +34,7 @@ class PlayerLoginScreen(Screen):
         self,
         ctx: SessionContext
     ) -> ScreenState:
-        if ctx.initials: return ScreenState.LOGGED_IN
+        # if ctx.initials: return ScreenState.LOGGED_IN
         self.reset_timeout()
         SEPARATION = 31
         self.users = [(0, 'guest')]
@@ -46,16 +46,10 @@ class PlayerLoginScreen(Screen):
         self.scroll_target_y = 0
         self.WRAP = len(self.users) > 5
 
-        back_duration = time.monotonic()
         for event in self.buttons.get_key_presses():
             self.scroll_target_y = 0
-            if event is not NavEvent.BOTH: back_duration = time.monotonic()
-            if event is NavEvent.BOTH:
-                self.timeout(force=True)
-                self.log.info('force log out')
-                self.scroll_target_y = self.text.height//2
-                if time.monotonic() - back_duration > 2:
-                    return ScreenState.LOGIN_BACK
+            if event is NavEvent.BOTH_HELD:
+                return ScreenState.ENTER_SETTINGS
             elif event is NavEvent.SELECT:
                 if self.reset_timeout():
                     break

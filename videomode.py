@@ -136,6 +136,7 @@ class PinMAMEPlayer:
         self.high_score_initials = HighScoreInitialsEntry(self.display, self.buttons)
         self.save_high_score = SaveHighScoreScreen(self.display, self.buttons, self.scores, self.players)
         self.generic_message = GenericMessage(self.display, self.buttons)
+        self.log.info('args: %s', args)
 
     def startup(self) -> None:
         self.log.info("Starting up")
@@ -150,22 +151,25 @@ class PinMAMEPlayer:
         self.display.shutdown()
 
     def log_out_after_game(self, ctx) -> ScreenState:
-        if not self.settings.get('log in first') or not ctx.initials:
+        if self.settings.get('log in first'):
+            if ctx.initials:
+                return ScreenState.LOGGED_IN
+            else:
+                return ScreenState.GUEST_SELECTED
+        else:
             ctx.initials = None
             return ScreenState.GUEST_SELECTED
-        else:
-            return ScreenState.LOGGED_IN
 
     def run(self) -> None:
-        SCREENS_NETWORK = {
-            ScreenState.LOGGED_OUT: self.login.run,  # LOGGED_IN, LOGIN_BACK, CREATE_USER, GUEST_SELECTED, LOGGED_IN
+        self._SCREENS_NETWORK = {
+            ScreenState.LOGGED_OUT: self.log_out_after_game,  # LOGGED_IN, ENTER_SETTINGS, CREATE_USER, GUEST_SELECTED, LOGGED_IN
             ScreenState.GAME_SELECTED: self.session.run,  # SNAPSHOTTED, GAME_FAILED, GAME_COMPLETED, SAVE_HIGH_SCORE, NO_HIGH_SCORE
-            ScreenState.LOGIN_BACK: self.settings_screen.run,  # SETTINGS_DONE
-            ScreenState.LOGGED_IN: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED, LOGGED_OUT
+            ScreenState.ENTER_SETTINGS: self.settings_screen.run,  # SETTINGS_DONE
+            ScreenState.LOGGED_IN: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED
             ScreenState.SNAPSHOTTED: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
             ScreenState.SETTINGS_DONE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
             ScreenState.CREATE_USER: self.create_user.run,  # LOGGED_IN, LOGGED_OUT
-            ScreenState.GUEST_SELECTED: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED, LOGGED_OUT
+            ScreenState.GUEST_SELECTED: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED
             ScreenState.GAME_COMPLETED: was_game_high_score,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
             ScreenState.NEED_HIGH_SCORE_INITIALS: self.high_score_initials.run,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
             ScreenState.SAVE_HIGH_SCORE: self.save_high_score.run,  # NEED_HIGH_SCORE_INITIALS, SAVED_HIGH_SCORE
@@ -173,15 +177,18 @@ class PinMAMEPlayer:
             ScreenState.GAME_FAILED: self.generic_message('ROM ERROR', ScreenState.NO_HIGH_SCORE),  # NO_HIGH_SCORE
             ScreenState.SAVED_HIGH_SCORE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
         }
-
+        self._print_graph()
+        self._validate_network()
         self.startup()
         ctx = SessionContext()
+        ctx.snapshotting = self.snapshotting
+        ctx.screenshotting = self.screenshotting
         state = ScreenState.LOGGED_OUT
 
         try:
             while True:
                 self.log.info('state = %s; ctx = %s', state, ctx)
-                method = SCREENS_NETWORK[state]
+                method = self._SCREENS_NETWORK[state]
                 result = method(ctx)
                 assert isinstance(result, ScreenState), f'{method} returned {result}, not a ScreenState'
                 state = result
@@ -189,6 +196,21 @@ class PinMAMEPlayer:
             self.log.info("KeyboardInterrupt — exiting")
         finally:
             self.shutdown()
+
+    def _print_graph(self):
+        """Debug helper: dump the state graph as text. Call once by hand
+        after editing SCREENS_NETWORK, paste the output into a comment."""
+        max_state_name = len(max(self._SCREENS_NETWORK, key=lambda x:len(x.name)).name)
+        for state, fn in self._SCREENS_NETWORK.items():
+            self.log.info(f"{state.name.ljust(max_state_name)} -> {getattr(fn, '__qualname__', fn)}")
+    
+    def _validate_network(self) -> None:
+        _ALL_STATES = set(ScreenState)
+        missing = _ALL_STATES - set(self._SCREENS_NETWORK)
+        if missing:
+            raise AssertionError(f"No handler for: {missing}")
+        else:
+            self.log.info('network validated')
 
 if __name__ == "__main__":
     PinMAMEPlayer().run()
