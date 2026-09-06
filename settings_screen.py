@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 
-import json
 from itertools import count
-import logging
-
-from operator import attrgetter, itemgetter
-from text_to_dmd import ColorRamp, RandomColor
-from typing import Optional
 
 from settings import SettingsStore
 from button import ButtonInput, NavEvent

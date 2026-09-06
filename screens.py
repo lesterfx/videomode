@@ -133,3 +133,11 @@ class GenericMessage(Screen):
             ctx.err = None
             return return_value
         return run
+
+class Blank(Screen):
+    def run(self, ctx):
+        self.text.clear()
+        self.show()
+        for button in self.buttons.get_key_presses():
+            if button is not NavEvent.NONE:
+                return ScreenState.EXIT_GAME_SELECT

@@ -46,11 +46,11 @@ from players import PlayerStore
 from rom_session import VideoModeSession, was_game_high_score
 from snapshotter import Snapshotter
 from end_detector import EndDetector
-from high_scores import HighScoreStore, SaveHighScoreScreen
+from high_scores import HighScoreStore, SaveHighScoreScreen, NotHighScoreScreen
 from settings import SettingsStore
 from initials import HighScoreInitialsEntry, CreateUserInitialsEntry
 from vm_types import ScreenState, SessionContext
-from screens import GenericMessage
+from screens import GenericMessage, Blank
 
 # ---------------------------------------------------------------------------
 # Configuration — edit these to match your hardware and paths
@@ -100,19 +100,19 @@ class PinMAMEPlayer:
             format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S',
             level=logging.INFO,
-            filename='videomode.log',
-            filemode='a'
+            # filename='videomode.log',
+            # filemode='a'
         )
         self.log = logging.getLogger("PinMAMEPlayer")
 
         self.settings = SettingsStore()
         self.pinmame = PinMAMEBridge()
         self.display = DMDDisplay(width=DMD_WIDTH, height=DMD_HEIGHT, brightness=self.settings.get('brightness'))
-        if self.display.hardware:
-            stderr_handler = logging.StreamHandler(sys.stderr)
-            stderr_handler.setLevel(logging.DEBUG)
-            stderr_handler.setFormatter(logging.getLogger().handlers[0].formatter)
-            logging.getLogger().addHandler(stderr_handler)
+        # if self.display.hardware:
+        #     stderr_handler = logging.StreamHandler(sys.stderr)
+        #     stderr_handler.setLevel(logging.DEBUG)
+        #     stderr_handler.setFormatter(logging.getLogger().handlers[0].formatter)
+        #     logging.getLogger().addHandler(stderr_handler)
 
         self.buttons = ButtonInput()
         self.settings_screen = SettingsScreen(self.display, self.buttons, self.settings)
@@ -135,7 +135,9 @@ class PinMAMEPlayer:
         self.create_user = CreateUserInitialsEntry(self.display, self.buttons)
         self.high_score_initials = HighScoreInitialsEntry(self.display, self.buttons)
         self.save_high_score = SaveHighScoreScreen(self.display, self.buttons, self.scores, self.players)
+        self.not_high_score = NotHighScoreScreen(self.display, self.buttons, self.scores, self.players)
         self.generic_message = GenericMessage(self.display, self.buttons)
+        self.blank = Blank(self.display, self.buttons)
         self.log.info('args: %s', args)
 
     def startup(self) -> None:
@@ -150,7 +152,7 @@ class PinMAMEPlayer:
         self.buttons.stop()
         self.display.shutdown()
 
-    def log_out_after_game(self, ctx) -> ScreenState:
+    def log_out_after_game(self, ctx: SessionContext) -> ScreenState:
         if self.settings.get('log in first'):
             if ctx.initials:
                 return ScreenState.LOGGED_IN
@@ -160,22 +162,35 @@ class PinMAMEPlayer:
             ctx.initials = None
             return ScreenState.GUEST_SELECTED
 
+    def exit_game_select(self, ctx: SessionContext) -> ScreenState:
+        """User asked to leave game select (quick BOTH). What that *means* —
+        go choose a different login, or just stay as guest — depends on
+        login policy, which game select has no business knowing."""
+        self.log.info('exit game select running...')
+        if self.settings.get('log in first'):
+            return ScreenState.LOGIN
+        ctx.initials = None
+        return ScreenState.GUEST_SELECTED
+
     def run(self) -> None:
         self._SCREENS_NETWORK = {
-            ScreenState.LOGGED_OUT: self.log_out_after_game,  # LOGGED_IN, ENTER_SETTINGS, CREATE_USER, GUEST_SELECTED, LOGGED_IN
-            ScreenState.GAME_SELECTED: self.session.run,  # SNAPSHOTTED, GAME_FAILED, GAME_COMPLETED, SAVE_HIGH_SCORE, NO_HIGH_SCORE
-            ScreenState.ENTER_SETTINGS: self.settings_screen.run,  # SETTINGS_DONE
-            ScreenState.LOGGED_IN: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED
-            ScreenState.SNAPSHOTTED: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
-            ScreenState.SETTINGS_DONE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
-            ScreenState.CREATE_USER: self.create_user.run,  # LOGGED_IN, LOGGED_OUT
-            ScreenState.GUEST_SELECTED: self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED
-            ScreenState.GAME_COMPLETED: was_game_high_score,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
-            ScreenState.NEED_HIGH_SCORE_INITIALS: self.high_score_initials.run,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
-            ScreenState.SAVE_HIGH_SCORE: self.save_high_score.run,  # NEED_HIGH_SCORE_INITIALS, SAVED_HIGH_SCORE
-            ScreenState.NO_HIGH_SCORE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
-            ScreenState.GAME_FAILED: self.generic_message('ROM ERROR', ScreenState.NO_HIGH_SCORE),  # NO_HIGH_SCORE
-            ScreenState.SAVED_HIGH_SCORE: self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.EXIT_GAME_SELECT:           self.exit_game_select,
+            ScreenState.LOGGED_OUT:                 self.log_out_after_game,  # LOGGED_IN, ENTER_SETTINGS, CREATE_USER, GUEST_SELECTED, LOGGED_IN
+            ScreenState.LOGIN:                      self.login.run,
+            ScreenState.GAME_SELECTED:              self.session.run,  # SNAPSHOTTED, GAME_FAILED, GAME_COMPLETED, SAVE_HIGH_SCORE, NO_HIGH_SCORE
+            ScreenState.ENTER_SETTINGS:             self.settings_screen.run,  # SETTINGS_DONE
+            ScreenState.LOGGED_IN:                  self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED
+            ScreenState.SNAPSHOTTED:                self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.SETTINGS_DONE:              self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.CREATE_USER:                self.create_user.run,  # LOGGED_IN, LOGGED_OUT
+            ScreenState.GUEST_SELECTED:             self.game_select.run,  # LOGGED_OUT, GAME_SELECTED, GAME_FAILED
+            ScreenState.GAME_COMPLETED:             was_game_high_score,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
+            ScreenState.NEED_HIGH_SCORE_INITIALS:   self.high_score_initials.run,  # SAVE_HIGH_SCORE, NO_HIGH_SCORE
+            ScreenState.SAVE_HIGH_SCORE:            self.save_high_score.run,  # NEED_HIGH_SCORE_INITIALS, SAVED_HIGH_SCORE
+            ScreenState.NO_HIGH_SCORE:              self.not_high_score.run,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.GAME_FAILED:                self.generic_message('ROM ERROR', ScreenState.NO_HIGH_SCORE),  # NO_HIGH_SCORE
+            ScreenState.SCORE_FINISHED:             self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
+            ScreenState.TIMEOUT:                    self.blank.run
         }
         self._print_graph()
         self._validate_network()
@@ -183,7 +198,7 @@ class PinMAMEPlayer:
         ctx = SessionContext()
         ctx.snapshotting = self.snapshotting
         ctx.screenshotting = self.screenshotting
-        state = ScreenState.LOGGED_OUT
+        state = ScreenState.EXIT_GAME_SELECT
 
         try:
             while True:

@@ -295,6 +295,6 @@ class Snapshotter:
             all_solenoids = ['  ']* (max(self.active_solenoids or {0})+1)
             for solenoid in self.active_solenoids:
                 all_solenoids[solenoid] = str(solenoid).rjust(2)
-            # self.log.info('solenoids: %s', ' '.join(all_solenoids))
+            self.log.info('solenoids: %s', ' '.join(all_solenoids))
         except:
             self.log.error('error getting solenoid label', exc_info=True)

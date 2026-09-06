@@ -248,30 +248,37 @@ class SaveHighScoreScreen(Screen):
         self.scores = scores
         self.players = players
 
+    BG_COLOR = RandomColor(0,2)
+    TITLE = 'NEW HIGH SCORE'
+
     def run(self, ctx: SessionContext) -> ScreenState:
         if not ctx.initials:
             return ScreenState.NEED_HIGH_SCORE_INITIALS
         self.players.add_player(ctx.initials)
-        result = self.scores.submit_score(ctx)
-        if result.is_new_high_score:
-            end_time = time.monotonic() + 10
-            while time.monotonic() < end_time:
-                self.text.box(0, 0, self.text.width, self.text.height, color=RandomColor(0,2))
-                self.text.draw_text(
-                    text = 'NEW HIGH SCORE',
-                    font = 15,
-                    center = True,
-                    x = self.text.width//2,
-                    y = 2,
-                    outline = True
-                )
-                self.text.draw_text(
-                    text = f'{ctx.score:,}',
-                    font = 15,
-                    center = True,
-                    x = self.text.width//2,
-                    y = self.text.height//2,
-                    outline = True
-                )
-                self.show()
-        return ScreenState.SAVED_HIGH_SCORE
+        self.scores.submit_score(ctx)
+        end_time = time.monotonic() + 10
+        while time.monotonic() < end_time:
+            self.text.box(0, 0, self.text.width, self.text.height, color=self.BG_COLOR)
+            self.text.draw_text(
+                text = self.TITLE,
+                font = 15,
+                center = True,
+                x = self.text.width//2,
+                y = 2,
+                outline = True
+            )
+            self.text.draw_text(
+                text = f'{ctx.score:,}',
+                font = 15,
+                center = True,
+                x = self.text.width//2,
+                y = self.text.height//2,
+                outline = True,
+                max_width = 128
+            )
+            self.show()
+        return ScreenState.SCORE_FINISHED
+
+class NotHighScoreScreen(SaveHighScoreScreen):
+    BG_COLOR = 1
+    TITLE = 'VIDEO MODE COMPLETE'

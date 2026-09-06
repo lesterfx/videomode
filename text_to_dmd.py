@@ -7,6 +7,7 @@ import logging
 import os
 from pathlib import Path
 from random import randint
+import time
 from typing import Any, Callable, Generator, Optional
 
 from fonts import FONT
@@ -16,19 +17,21 @@ class RandomColor:
         self.minval = min(minval, maxval)
         self.maxval = max(minval, maxval)
 
-    def __call__(self, x: int, y: int, t: int) -> int:
+    def __call__(self, x: int, y: int, t: float) -> int:
         return randint(self.minval, self.maxval)
 
 class ColorRamp:
-    def __init__(self, width=10, speed=1, mapper=Callable[[int], int]):
+    def __init__(self, width=10, speed=20, mapper=Callable[[int], int]):
         self.width = width
         self.speed = speed
         self.mapper = mapper
 
-    def __call__(self, x: int, y: int, t: int) -> int:
-        val = abs(((x + y - t*self.speed) % self.width*2) - self.width)
+    def __call__(self, x: int, y: int, t: float) -> int:
+        val = int(abs(((x + y - t*self.speed) % self.width*2) - self.width))
         val = self.mapper(val)
         return val
+
+class TextTooWide(Exception): pass
 
 class TextRender:
     def __init__(self, width: int, height: int, depth: int) -> None:
@@ -40,12 +43,12 @@ class TextRender:
         self.log = logging.getLogger('TextRender')
 
     def clear(self) -> None:
-        self.t += 1
+        self.t = time.monotonic()
         self.frame = bytearray(self.width * self.height)
 
     def draw_text(
         self,
-        text: str,
+        text: str|list[tuple[str, int|Callable[[int, int, int], int]]],
         y: int,
         x: int = 0,
         right: bool = False,
@@ -60,9 +63,9 @@ class TextRender:
         outline: bool = False,
         kerning: int = 1,
         outline_color: int|Callable[[int, int, int], int] = 0,
-        minx: Optional[int] = None
+        minx: Optional[int] = None,
+        max_width: Optional[int] = None
     ) -> None:
-        
         y0 = y
 
         box_x = max(0, box_x or 0)
@@ -70,14 +73,20 @@ class TextRender:
         box_r = min(self.width, box_r if box_r is not None else self.width)
         box_b = min(self.height, box_b if box_b is not None else self.height)
 
-        cols = []
+        cols: list[tuple[int, int, int|Callable[[int, int, int], int]]] = []
         i = 0
-        for ch in str(text):
+        if isinstance(text, str):
+            textlist = [(ch, color) for ch in text]
+        else:
+            textlist = text
+        for ch, color in textlist:
             for col in self._char_columns(ch, font=font):
-                cols.append((i, col))
+                cols.append((i, col, color))
                 i += 1  # next column
             i += kerning  # next character
         i -= kerning  # no kerning after the last character
+        if max_width is not None and len(cols) > max_width:
+            raise TextTooWide(f'text would have been {len(cols)} pixels wide')
 
         start_x = x
         if right:
@@ -96,10 +105,11 @@ class TextRender:
                 font = (font, 1),
                 color = outline_color,
                 kerning = kerning - 2,
+                max_width=max_width
             )
 
 
-        for i, col_bits in cols:
+        for i, col_bits, color in cols:
             x = start_x + i
             if x < box_x:
                 continue

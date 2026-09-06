@@ -105,6 +105,8 @@ class SessionContext:
     err: Optional[str] = None
 
 class ScreenState(Enum):
+    LOGIN = auto()
+    EXIT_GAME_SELECT = auto()
     LOGGED_OUT = auto()
     GAME_SELECTED = auto()
     ENTER_SETTINGS = auto()
@@ -118,4 +120,5 @@ class ScreenState(Enum):
     NEED_HIGH_SCORE_INITIALS = auto()
     NO_HIGH_SCORE = auto()
     GAME_FAILED = auto()
-    SAVED_HIGH_SCORE = auto()
+    SCORE_FINISHED = auto()
+    TIMEOUT = auto()

@@ -87,7 +87,7 @@ class VideoModeSession:
             else:
                 raise ValueError('NO START SCORE AFTER 10 SECONDS')
 
-            self.log.info('start score: %d', start_score)
+            self.log.info(f'start score: {start_score:,}')
 
             # Wire DMD frames to the physical display for both modes.
             self.log.info('setting up dmd for real now')
@@ -151,6 +151,7 @@ class VideoModeSession:
             self.pinmame.stop()
 
         if start_score is not None and end_score is not None:
+            self.log.info(f'start score {start_score:,}, end score {end_score:,}')
             score = end_score - start_score
 
         duration = end_time - start_time

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
 import json
-import logging
-from operator import attrgetter, itemgetter
+from operator import attrgetter
 from pathlib import Path
-from text_to_dmd import ColorRamp, RandomColor
+from text_to_dmd import ColorRamp
 from typing import Optional
 
 from vm_types import GameEntry, GameParent, EndDetectorConfig
@@ -113,7 +112,14 @@ class GameSelectScreen(Screen):
         elif self.screenshotter:
             title = 'SAVING SCREENSHOT'
         else:
-            title = f'{ctx.initials or "guest"} SELECT YOUR GAME'
+            if ctx.initials:
+                title = []
+                for initial in ctx.initials:
+                    title.append((initial, ColorRamp(mapper=lambda x: min(3, max(6-x, 2)))))
+                for char in ' SELECT YOUR GAME':
+                    title.append((char, 3))
+            else:
+                title = 'SELECT YOUR GAME'
 
         scores_for_player = self.scores.scores_for_player(ctx.initials)
 
@@ -136,7 +142,7 @@ class GameSelectScreen(Screen):
                 self._scroll = [0, 0]
                 self._selected_index = 0
                 self.reset_timeout()
-                return ScreenState.LOGGED_OUT
+                return ScreenState.EXIT_GAME_SELECT
             elif event is NavEvent.BOTH_LONG:
                 self.log.info('settings')
                 return ScreenState.ENTER_SETTINGS
@@ -158,7 +164,7 @@ class GameSelectScreen(Screen):
             elif event is NavEvent.NONE:
                 move = 0
                 if self.timeout():
-                    return ScreenState.LOGGED_OUT
+                    return ScreenState.EXIT_GAME_SELECT
 
             self.scroll_by(move, max=len(self._games))
             self._selected_game = self._games[self._selected_index]
@@ -217,7 +223,7 @@ class GameSelectScreen(Screen):
                     if game.ready:
                         text = self._format_game(game.high_score)
                         if game.is_high_score:
-                            col = ColorRamp(10, 2, lambda x: min(3, max(6-x, 2)))
+                            col = ColorRamp(mapper=lambda x: min(3, max(6-x, 2)))
                     else:
                         text = game.msg
                     self.text.draw_text(
@@ -247,7 +253,7 @@ class GameSelectScreen(Screen):
             #     0, 0, 128, 6, 1
             # )
             self.text.draw_text(
-                text = title.upper(),
+                text = title,
                 center=True,
                 y = 0,
                 x = self.text.width//2,

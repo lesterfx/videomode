@@ -67,6 +67,7 @@ class NavEvent(Enum):
     SELECT    = auto()
     BOTH      = auto()
     BOTH_LONG = auto()
+    TIMEOUT   = auto()
 
 
 @dataclass(frozen=True)
@@ -201,13 +202,10 @@ class ButtonInput:
         """
 
         # pretend remnant presses are nothing until nothing is actually pressed
-        for event in self._get_key_presses():
+        while any(self._held.values()):
             yield NavEvent.NONE
-            if event == NavEvent.NONE:
-                break
         for event in self._get_key_presses():
             if event is not NavEvent.NONE:
-                self.log.info('passing event, %s', event)
                 if event is NavEvent.BOTH_LONG:
                     self.log.info('both long!')
             yield event
@@ -266,6 +264,7 @@ class ButtonInput:
                 else:
                     was_both = True
                     # yield NavEvent.BOTH
+                    yield NavEvent.NONE
 
             elif event and event.pressed:
                 if event.button is ButtonName.LEFT_FLIPPER:

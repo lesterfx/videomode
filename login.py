@@ -7,12 +7,9 @@ from dmd_display import DMDDisplay
 from screens import Screen
 from players import PlayerStore
 
-from text_to_dmd import RandomColor, ColorRamp
+from text_to_dmd import RandomColor
 
 from vm_types import ScreenState, SessionContext
-
-class Login(Enum):
-    BACK = auto()
 
 # ---------------------------------------------------------------------------
 # PlayerLoginScreen
@@ -48,7 +45,7 @@ class PlayerLoginScreen(Screen):
 
         for event in self.buttons.get_key_presses():
             self.scroll_target_y = 0
-            if event is NavEvent.BOTH_HELD:
+            if event is NavEvent.BOTH_LONG:
                 return ScreenState.ENTER_SETTINGS
             elif event is NavEvent.SELECT:
                 if self.reset_timeout():
@@ -61,7 +58,9 @@ class PlayerLoginScreen(Screen):
                     self._selected_index += 1
             elif event is NavEvent.NONE:
                 if self.timeout():
-                    self.scroll_target_y = self.text.height//2
+                    return ScreenState.TIMEOUT
+            elif event is NavEvent.BOTH:
+                return ScreenState.TIMEOUT
 
             if not self.WRAP:
                 self._selected_index = min(len(self.users)-1, max(self._selected_index, 0))
