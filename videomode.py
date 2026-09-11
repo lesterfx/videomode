@@ -72,7 +72,9 @@ def parse_args() -> argparse.Namespace:
                    help="Run games from boot in order to save snapshot")
     p.add_argument("--screenshotter", action="store_true",
                    help="Run games from boot in order to save screenshot")
-    return p.parse_args()
+    parsed = p.parse_args()
+    print(parsed)
+    return parsed
 
 # ---------------------------------------------------------------------------
 # Main application loop

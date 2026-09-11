@@ -56,6 +56,8 @@ class GameParent:
 
     bit_depth: int = 2
 
+    auto_switches: dict[str, tuple[tuple[int, bool], ...]] = field(default_factory=dict)
+
     def __str__(self):
         return (self.name or 'unknown game').replace('\n', ' ')
 

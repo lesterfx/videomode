@@ -92,7 +92,7 @@ class VideoModeSession:
             # Wire DMD frames to the physical display for both modes.
             self.log.info('setting up dmd for real now')
             self.pinmame.dmd_callback = self.display.show_frame
-            self.display.label_getter = self.score_label_getter
+            # self.display.label_getter = self.score_label_getter
             self.detector.reset(game.parent.end_detector_config)
 
             self.log.debug("Entering normal play loop")

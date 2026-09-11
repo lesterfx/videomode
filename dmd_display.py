@@ -33,6 +33,7 @@ from collections import deque
 import logging
 import os
 from random import random
+import sys
 import time
 from typing import Callable, Optional
  
@@ -191,6 +192,8 @@ class DMDDisplay:
             print_frame(frame, self.shown, self.label_getter, width=self.width, height=self.height)
             self.shown = True
         else:
+            if self.label_getter:
+                self.show_label(self.label_getter())
             self._push_to_matrix(frame)
 
         self.frames_since_last_fps += 1
@@ -232,7 +235,12 @@ class DMDDisplay:
             self._matrix.SwapOnVSync(self._canvas)
             self._matrix = None
             self._canvas  = None
- 
+
+    def show_label(self, label: str):
+        lines = len(label.split('\n'))
+        sys.stdout.write(f"\x1b[{lines}A\x1b[J")
+        print(label)
+
     # ------------------------------------------------------------------
     # Hardware initialisation
     # ------------------------------------------------------------------
@@ -380,11 +388,11 @@ if __name__ == "__main__":
     print("=== gradient ===")
     start = time.monotonic()
     while time.monotonic() < start+5:
-        display.show_frame(make_gradient_frame(display.width, display.height))
+        display.show_frame(display.make_gradient_frame(display.width, display.height))
  
     print("\n=== checkerboard ===")
     for box_size in range(1, display.height+1):
-        display.show_frame(make_checkerboard_frame(display.width, display.height, box_size))
+        display.show_frame(display.make_checkerboard_frame(display.width, display.height, box_size))
         time.sleep(0.5)
  
     print("\n=== blank ===")

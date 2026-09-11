@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from random import randint
 import time
+import time
 from typing import Any, Callable, Generator, Optional
 
 from fonts import FONT
@@ -79,6 +80,11 @@ class TextRender:
             textlist = [(ch, color) for ch in text]
         else:
             textlist = text
+
+        if max_width is not None and isinstance(font, int):
+            font = self._fit_font(textlist, font, kerning, max_width)
+
+        cols: list[tuple[int, int, int|Callable[[int, int, int], int]]] = []
         for ch, color in textlist:
             for col in self._char_columns(ch, font=font):
                 cols.append((i, col, color))
@@ -132,6 +138,47 @@ class TextRender:
    
                 col_bits = col_bits >> 1
 
+    def _text_width(
+        self,
+        textlist: list[tuple[str, int|Callable[[int, int, int], int]]],
+        font: int|tuple[int, int],
+        kerning: int
+    ) -> int:
+        """Total pixel width of textlist rendered at `font`, incl. kerning."""
+        total = 0
+        n = 0
+        for ch, _ in textlist:
+            total += len(self._char_columns(ch, font=font))
+            n += 1
+        if n:
+            total += kerning * (n - 1)
+        return total
+
+    def _fit_font(
+        self,
+        textlist: list[tuple[str, int|Callable[[int, int, int], int]]],
+        font: int,
+        kerning: int,
+        max_width: int
+    ) -> int:
+        """
+        Return the largest font size <= `font` that renders textlist within
+        max_width, trying `font` itself first and then stepping down through
+        FONT's other integer sizes (sparse — not assumed contiguous) in
+        decreasing order. Raises TextTooWide if even the smallest available
+        size doesn't fit.
+        """
+        candidates = sorted((f for f in FONT if isinstance(f, int) and f <= font), reverse=True)
+        width = 0
+        for candidate in candidates:
+            width = self._text_width(textlist, candidate, kerning)
+            if width <= max_width:
+                return candidate
+        raise TextTooWide(
+            f'text would have been {width} pixels wide even at the '
+            f'smallest available font size {candidates[-1]}'
+        )
+
     def _char_columns(self, ch: str, font: int|tuple[int, int]=7) -> tuple[int, ...]:
         """Return the 5 column bytes for a printable ASCII character."""
         try:
@@ -142,8 +189,19 @@ class TextRender:
         try:
             return font_d[ch]
         except KeyError:
-            self.log.error(f'missing character: {ch}')
-            return font_d['?']
+            pass
+
+        # Some fonts only define one case for a letter. Before giving up,
+        # try the other case of the same character.
+        swapped = ch.upper() if ch.islower() else ch.lower()
+        if swapped != ch:
+            try:
+                return font_d[swapped]
+            except KeyError:
+                pass
+
+        self.log.error(f'missing character: {ch}')
+        return font_d['?']
 
     def _box(self, x:int, y:int, w:int, h:int) -> Generator[tuple[int, int, int], Any, None]:
         r = x + w

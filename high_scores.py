@@ -252,10 +252,8 @@ class SaveHighScoreScreen(Screen):
     TITLE = 'NEW HIGH SCORE'
 
     def run(self, ctx: SessionContext) -> ScreenState:
-        if not ctx.initials:
-            return ScreenState.NEED_HIGH_SCORE_INITIALS
-        self.players.add_player(ctx.initials)
-        self.scores.submit_score(ctx)
+        if result := self.need_initials(ctx):
+            return result
         end_time = time.monotonic() + 10
         while time.monotonic() < end_time:
             self.text.box(0, 0, self.text.width, self.text.height, color=self.BG_COLOR)
@@ -265,7 +263,8 @@ class SaveHighScoreScreen(Screen):
                 center = True,
                 x = self.text.width//2,
                 y = 2,
-                outline = True
+                outline = True,
+                max_width = 120
             )
             self.text.draw_text(
                 text = f'{ctx.score:,}',
@@ -274,11 +273,19 @@ class SaveHighScoreScreen(Screen):
                 x = self.text.width//2,
                 y = self.text.height//2,
                 outline = True,
-                max_width = 128
+                max_width = 120
             )
             self.show()
         return ScreenState.SCORE_FINISHED
 
+    def need_initials(self, ctx) -> Optional[ScreenState]:
+        if not ctx.initials:
+            return ScreenState.NEED_HIGH_SCORE_INITIALS
+        self.players.add_player(ctx.initials)
+        self.scores.submit_score(ctx)
+
 class NotHighScoreScreen(SaveHighScoreScreen):
     BG_COLOR = 1
     TITLE = 'VIDEO MODE COMPLETE'
+    def need_initials(self, ctx) -> Optional[ScreenState]:
+        pass

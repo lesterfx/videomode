@@ -49,6 +49,7 @@ import ctypes
 import json
 import logging
 import struct
+import select
 import sys
 import termios
 import time
@@ -144,6 +145,11 @@ class Snapshotter:
                110,111,112,113,114,115,116,117
             )
         }
+        self.switch_matrix_cols: dict[str, int] = {
+            'wpc': 8,
+            'sega': 8,
+            'gottlieb': 8
+        }
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -173,8 +179,7 @@ class Snapshotter:
         self.pinmame.state_callback = self.on_state_update
 
         self.active_switches: set[int] = set()
-        self.display.label_getter = self.get_label
-        start = time.monotonic()
+        # self.display.label_getter = self.get_label
 
         self.log.info("\nSnapshotter mode — navigate to video mode then press Enter.")
         self.log.info(
@@ -187,10 +192,10 @@ class Snapshotter:
 
         try:
             tty.setraw(fd)
-            ch = sys.stdin.read(1)
+            self._get_ch()
 
             while True:
-                ch = sys.stdin.read(1)
+                ch = self._get_ch()
 
                 # Enter (\r in raw mode) → capture and exit
                 if ch in ("\r", "\n"):
@@ -215,15 +220,13 @@ class Snapshotter:
                     self.log.info('Aborted - no snapshot written.')
                     break
 
+                self.show_label(self.get_label())
+
                 # Switch toggle
-                sw = self._switch_for_key(ch)
-                if sw is not None:
-                    if sw in self.active_switches:
-                        self.active_switches.discard(sw)
-                        self.pinmame.send_switch(sw, False)
-                    else:
-                        self.active_switches.add(sw)
-                        self.pinmame.send_switch(sw, True)
+                if ch is not None:
+                    sw = self._switch_for_key(ch)
+                    if sw is not None:
+                        self.switch(sw)
 
         except KeyboardInterrupt:
             pass
@@ -238,6 +241,28 @@ class Snapshotter:
 
         return ScreenState.SNAPSHOTTED
 
+    def switch(self, sw: int, state:bool|None=None):
+        if state is None:
+            state = sw not in self.active_switches
+        if state:
+            self.active_switches.add(sw)
+            self.pinmame.send_switch(sw, True)
+        else:
+            self.active_switches.discard(sw)
+            self.pinmame.send_switch(sw, False)
+
+    def _get_ch(self) -> Optional[str]:
+        # return sys.stdin.read(1)
+        ready, _, _ = select.select([sys.stdin], [], [], 0.05)  # 50ms poll
+        if ready:
+            ch = sys.stdin.read(1)
+            return ch
+
+    def show_label(self, label: str):
+        lines = len(label.split('\n'))
+        sys.stdout.write(f"\x1b[{lines}A\x1b[J")
+        print(label)
+    
     # ------------------------------------------------------------------
     # Snapshot capture — called when operator presses Enter
     # ------------------------------------------------------------------
@@ -257,30 +282,34 @@ class Snapshotter:
             return ''
 
     def _get_switches_label(self) -> str:
-        r = 'switches: '
+        r = 'switches:\r\n'
         for i, idx in enumerate(self.switch_matrix_indexes[self.game.parent.platform]):
+            if not (i % self.switch_matrix_cols[self.game.parent.platform]): r += '\r\n'
             if idx in self.active_switches:
                 r += self._SNAPSHOTTER_CHARS[i]
             else:
                 r += ' '
+            r += '  '
+        r += '\r\n'
         return r
 
     def _get_lamps_label(self):
-        r = f'{str(self.game)} lamps: '
+        r = f'lamps:\r\n'
         lamps = self.pinmame.get_lamps()
-        for idx in self.switch_matrix_indexes[self.game.parent.platform]:
+        for i, idx in enumerate(self.switch_matrix_indexes[self.game.parent.platform]):
+            if not (i % self.switch_matrix_cols[self.game.parent.platform]): r += '\r\n'
             # if idx not in {28, 35, 37, 38, 36}: continue
             # if idx not in {47, 27, 43, 34, 25, 41, 53, 32, 21, 57, 51, 18}: continue  # indiana jones
             # if idx not in {77, 76, 75, 74, 73, 72, 71}: continue  # black rose
             if idx in lamps:
-                r += str(idx)
+                r += str(idx).center(3)
             else:
-                r += ' '*len(str(idx))
-            r += ' '
-        logging.info(r)
+                r += '   '
+            r += '  '
+        r += '\r\n'
         return r
 
-    def _switch_for_key(self, ch: str) -> Optional[int]:
+    def _switch_for_key(self, ch: str|None) -> Optional[int]:
         try:
             return self.switch_matrix_indexes[self.game.parent.platform][self._SNAPSHOTTER_CHARS.index(ch)]
         except (ValueError, IndexError):
@@ -293,8 +322,29 @@ class Snapshotter:
             else:
                 self.active_solenoids.remove(solenoid)
             all_solenoids = ['  ']* (max(self.active_solenoids or {0})+1)
-            for solenoid in self.active_solenoids:
-                all_solenoids[solenoid] = str(solenoid).rjust(2)
+            for a_solenoid in self.active_solenoids:
+                all_solenoids[a_solenoid] = str(a_solenoid).rjust(2)
             self.log.info('solenoids: %s', ' '.join(all_solenoids))
+            if state:
+                self.auto_switch(solenoid)
         except:
             self.log.error('error getting solenoid label', exc_info=True)
+
+    def auto_switch(self, solenoid):
+        strsolenoid = str(solenoid)  # json requires string keys
+        if strsolenoid not in self.game.parent.auto_switches:
+            self.log.info(f'solenoid {strsolenoid} has no autoswitches')
+            return
+        autoswitches = self.game.parent.auto_switches[strsolenoid]
+        if not autoswitches: return
+        labels = []
+        for switch, state in autoswitches:
+            # self.log.info(f'solenoid {strsolenoid} turned switch {switch} {state}')
+            self.switch(switch, state)
+            label = self._SNAPSHOTTER_CHARS[self.switch_matrix_indexes[self.game.parent.platform].index(switch)]
+            if state:
+                label += ' on'
+            else:
+                label += ' off'
+            labels.append(label)
+        self.log.info(f'solenoid # {strsolenoid} switches %s', ', '.join(labels))
