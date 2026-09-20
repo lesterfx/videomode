@@ -1,0 +1,17 @@
+{
+    "name": "Junk Yard",
+    "rom": "jy_12",
+    "platform": "wpc",
+    "videomodes": [
+        {
+            "name": "Run from Spike",
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        },
+        {
+            "name": "Save the Girl",
+            "ready": false, "notes": "not started",
+            "snapshot_index": 2
+        }
+    ]
+}

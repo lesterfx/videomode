@@ -1,0 +1,11 @@
+{
+    "name": "Terminator 3",
+    "rom": "term3",
+    "platform": "stern",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

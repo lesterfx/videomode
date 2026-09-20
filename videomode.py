@@ -98,23 +98,32 @@ class PinMAMEPlayer:
         self.snapshotting = args.snapshotter
         self.screenshotting = args.screenshotter
 
-        logging.basicConfig(
-            format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S',
-            level=logging.INFO,
-            # filename='videomode.log',
-            # filemode='a'
-        )
+        if self.snapshotting:
+            logging.basicConfig(
+                format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+                level=logging.INFO,
+                filename=Path(__file__).parent / 'videomode.log',
+                filemode='a'
+            )
+            # stderr_handler = logging.StreamHandler(sys.stderr)
+            # stderr_handler.setLevel(logging.DEBUG)
+            # stderr_handler.setFormatter(logging.getLogger().handlers[0].formatter)
+            # logging.getLogger().addHandler(stderr_handler)
+        else:
+            logging.basicConfig(
+                format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+                level=logging.INFO,
+                # filename='videomode.log',
+                # filemode='a'
+            )
         self.log = logging.getLogger("PinMAMEPlayer")
+        self.log.info('hello')
 
         self.settings = SettingsStore()
         self.pinmame = PinMAMEBridge()
         self.display = DMDDisplay(width=DMD_WIDTH, height=DMD_HEIGHT, brightness=self.settings.get('brightness'))
-        # if self.display.hardware:
-        #     stderr_handler = logging.StreamHandler(sys.stderr)
-        #     stderr_handler.setLevel(logging.DEBUG)
-        #     stderr_handler.setFormatter(logging.getLogger().handlers[0].formatter)
-        #     logging.getLogger().addHandler(stderr_handler)
 
         self.buttons = ButtonInput()
         self.settings_screen = SettingsScreen(self.display, self.buttons, self.settings)

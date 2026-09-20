@@ -1,0 +1,11 @@
+{
+    "name": "No Fear: Dangerous Sports",
+    "rom": "nf_23x",
+    "platform": "wpc",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

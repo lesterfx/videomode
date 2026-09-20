@@ -1,0 +1,19 @@
+{
+    "name": "Creature from Black Lagoon",
+    "rom": "cftbl_l2",
+    "platform": "wpc",
+    "active_switches": [57, 34],
+    "left_flipper_switch": 114,
+    "right_flipper_switch": 112,
+    "launch_switch": 0,
+    "bit_depth": 2,
+    "end_detector_config": {
+        "grace_period_seconds": 5,
+        "trigger_solenoid": 31
+    },
+    "videomodes": [
+        {
+            "snapshot_index": 1
+        }
+    ]
+}

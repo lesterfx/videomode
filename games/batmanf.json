@@ -1,0 +1,20 @@
+{
+    "name": "Batman Forever",
+    "rom": "batmanf",
+    "platform": "sega",
+    "active_switches": [12, 13, 14, 15, 41],
+    "left_flipper_switch": 63,
+    "right_flipper_switch": 64,
+    "launch_switch": 49,
+    "auto_switches": {
+         "2": [[11, false], [16, true]], "2_": "trough up-kicker",
+         "3": [[16, false]],             "3_": "ball auto launcher",
+        "14": [],                       "14_": "batwing motor relay"
+    },
+    "videomodes": [
+        {
+            "ready": false, "notes": "can't steer",
+            "snapshot_index": 1
+        }
+    ]
+}

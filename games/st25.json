@@ -1,0 +1,11 @@
+{
+    "name": "Star Trek 25th Anniversary",
+    "rom": "trek_201",
+    "platform": "de",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

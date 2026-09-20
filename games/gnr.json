@@ -1,0 +1,11 @@
+{
+    "name": "Guns and Roses",
+    "rom": "gnr_300",
+    "platform": "de",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

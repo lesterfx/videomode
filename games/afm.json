@@ -1,0 +1,19 @@
+{
+    "name": "Attack From Mars",
+    "rom": "afm_113b",
+    "platform": "wpc",
+    "active_switches": [32, 33, 34, 37],
+    "left_flipper_switch": 114,
+    "right_flipper_switch": 112,
+    "launch_switch": 11,
+    "end_detector_config": {
+        "grace_period_seconds": 5,
+        "trigger_solenoid": 31,
+        "timeout": 100
+    },
+    "videomodes": [
+        {
+            "snapshot_index": 1
+        }
+    ]
+}

@@ -1,0 +1,37 @@
+{
+    "name": "Apollo 13",
+    "rom": "apollo13",
+    "platform": "sega",
+    "active_switches": [11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 47],
+    "left_flipper_switch": 63,
+    "right_flipper_switch": 64,
+    "launch_switch": 9,
+    "snapshot_startup_switches": [10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24],
+    "auto_switches": {
+        "1":  [[15, false], [16, true]],    "1_": "trough up-kicker",
+        "2":  [[16, false]],                "2_": "auto launch",
+        "3":  [],                           "3_": "right ball eject (is this video mode ended?)",
+        "4":  [],                           "4_": "center ball eject",
+        "5":  [],                           "5_": "rocket ball eject",
+        "9":  [],                           "9_": "left turbo bumper",
+        "10": [],                          "10_": "bottom turbo bumper",
+        "11": [],                          "11_": "right turbo bumper",
+        "12": [],                          "12_": "left slingshot",
+        "13": [],                          "13_": "right slingshot",
+        "14": [],                          "14_": "super vuk (under arch) what is this?",
+        "15": [],                          "15_": "left flipper enable",
+        "16": [],                          "16_": "right flipper enable",
+        "17": [[10, false], [15, true]],   "17_": "5-ball trough lock ball (does this release a ball to the trough?)",
+        "18": [],                          "18_": "up/down ramp",
+        "19": [],                          "19_": "moon motor relay",
+        "20": [],                          "20_": "rocket motor relay",
+        "22": [],                          "22_": "8 ball lock plunger",
+        "23": [],                          "23_": "up/down post"
+    },
+    "videomodes": [
+        {
+            "ready": false, "notes": "fails to get starting score",
+            "snapshot_index": 1
+        }
+    ]
+}

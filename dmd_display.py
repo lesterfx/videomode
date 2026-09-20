@@ -36,6 +36,7 @@ from random import random
 import sys
 import time
 from typing import Callable, Optional
+from vm_types import Arrow
  
 # ---------------------------------------------------------------------------
 # Optional hardware import — graceful fallback
@@ -115,6 +116,10 @@ class DMDDisplay:
         self._G_MAX = 88
         self._B_MAX = 0
 
+        self.CROP_TO_FIT:bool = True  # True crops, False scales down
+        self.pan_x = 0
+        self.pan_y = 0
+
         self.set_bit_depth(2)
 
         self.width  = width
@@ -126,6 +131,7 @@ class DMDDisplay:
         self.label_getter: Optional[Callable] = None
 
         self.screenshotting = False
+        self.snapshotting = False
         self.stack = deque(maxlen=50)
         self.last_fps = time.monotonic()
         self.frames_since_last_fps = 0
@@ -152,6 +158,18 @@ class DMDDisplay:
     # Public API
     # ------------------------------------------------------------------
  
+    def pan(self, direction:Arrow):
+        if direction is Arrow.LEFT:
+            self.pan_x -= 1
+        elif direction is Arrow.RIGHT:
+            self.pan_x += 1
+        elif direction is Arrow.UP:
+            self.pan_y -= 1
+        elif direction is Arrow.DOWN:
+            self.pan_y += 1
+        self.redraw()
+        return self.pan_x, self.pan_y
+
     def set_bit_depth(self, depth: int) -> None:
         self.max_intensity = 2**depth-1
         def _intensity_to_rgb(intensity: int) -> tuple[int, int, int]:
@@ -161,7 +179,10 @@ class DMDDisplay:
         # Pre-compute lookup table
         self._rgb_lut: list[tuple[int, int, int]] = [_intensity_to_rgb(i) for i in range(self.max_intensity+1)]
 
-
+    def redraw(self):
+        frame = self.stack[-1]
+        self.log.info('redraw frame size %d', len(frame))
+        self.show_frame(frame)
 
     def show_frame(self, frame: bytearray|bytes, layout=None) -> None:
         """
@@ -171,6 +192,11 @@ class DMDDisplay:
         ----------
         frame : bytes of length width*height, each byte value 0-15
         """
+
+        if self.screenshotting or self.snapshotting:
+            self.stack.append(frame)
+
+
         expected = self.width * self.height
         if len(frame) == expected:
             pass
@@ -183,10 +209,10 @@ class DMDDisplay:
                 src_h = 64
             else:
                 raise ValueError(f'Unknown frame size {len(frame)}')
-            frame = self._resample(frame, src_w, src_h)
-
-        if self.screenshotting:
-            self.stack.append(frame)
+            if self.CROP_TO_FIT:
+                frame = self._crop(frame, src_w, src_h)
+            else:
+                frame = self._resample(frame, src_w, src_h)
 
         if self._use_terminal:
             print_frame(frame, self.shown, self.label_getter, width=self.width, height=self.height)
@@ -344,6 +370,44 @@ class DMDDisplay:
         canvas[y_off:y_off + content_h, x_off:x_off + content_w] = content
  
         return canvas.tobytes()
+
+    def _crop(self, frame: bytearray | bytes, src_w: int, src_h: int) -> bytes:
+        """
+        Extract a self.width x self.height window from the center of a larger
+        source frame — a straight pixel crop, no scaling.
+
+        Unlike _resample's box-filter downscale (which shrinks the whole
+        source to fit and pillarboxes/letterboxes the remainder in black),
+        this keeps source pixels at 1:1 scale by simply discarding the
+        margin outside the centered window. That's sharper for DMD content
+        that's usually rendered with its "real" pixels already centered in
+        a larger canvas (common on Sega/Whitestar-era video modes), at the
+        cost of cropping away anything drawn near the source's edges.
+
+        Requires src_w >= self.width and src_h >= self.height — raises
+        ValueError otherwise (use _resample for a source smaller than the
+        panel in either dimension).
+        """
+        if src_w < self.width or src_h < self.height:
+            raise ValueError(
+                f"Source {src_w}x{src_h} is smaller than the panel "
+                f"{self.width}x{self.height} in at least one dimension — "
+                "center-crop needs a source at least as large as the panel "
+                "in both dimensions; use _resample (box-filter downscale) "
+                "instead."
+            )
+
+        self.pan_x = max(-(src_w - self.width) // 2, min((src_w - self.width) // 2, self.pan_x))
+        self.pan_y = max(-(src_h - self.height) // 2, min((src_h - self.height) // 2, self.pan_y))
+        x_off = (src_w - self.width) // 2 + self.pan_x
+        y_off = (src_h - self.height) // 2 + self.pan_y
+
+        out = bytearray(self.width * self.height)
+        for row in range(self.height):
+            src_start = (row + y_off) * src_w + x_off
+            out[row * self.width:(row + 1) * self.width] = \
+                frame[src_start:src_start + self.width]
+        return bytes(out)
 
     def make_gradient_frame(self, width: int, height: int, dither: bool=True) -> bytes:
         """

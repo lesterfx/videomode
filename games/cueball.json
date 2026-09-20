@@ -1,0 +1,12 @@
+{
+    "name": "Cue Ball Wizard",
+    "rom": "cueball",
+    "platform": "gottlieb",
+    "bit_depth": 4,
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

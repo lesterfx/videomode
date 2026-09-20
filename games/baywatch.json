@@ -1,0 +1,52 @@
+{
+    "name": "Baywatch",
+    "rom": "baywatch",
+    "platform": "sega",
+    "left_flipper_switch": 63,
+    "right_flipper_switch": 64,
+    "snapshot_startup_switches": [10, 11, 12, 13, 14, 15],
+    "auto_switches": {
+        "1":    [],                         "1L_": "5-Ball Assembly Lockout",
+        "2":    [[10, false], [16, true]],  "2L_": "Trough Up-Kicker",
+        "3":    [[16, false]],              "3L_": "Ball (Auto) Launch",
+        "4":    [[47, false]],              "4L_": "Upper Ball Launch",
+        "5":    [],                         "5L_": "Top VUK",
+        "6":    [],                         "6L_": "Bottom Super VUK",
+        "7":    [[56, false]],              "7L_": "Super Scoop (Shark)",
+        "8":    [],                         "8L_": "Knocker",
+        "9":    [],                         "9_":  "Upper Control Gate",
+        "10":   [],                         "10_": "L/R Power Relay",
+        "11":   [],                         "11_": "General Illumination Relay (PSB)",
+        "12":   [],                         "12_": "Trap Door",
+        "13":   [],                         "13_": "Upper left & right flippers",
+        "14":   [],                         "14_": "Lower Control Gate",
+        "15":   [],                         "15_": "Not used",
+        "16":   [],                         "16_": "3-Bank Drop Target Reset",
+        "17":   [],                         "17_": "Left Turbo Bumper",
+        "18":   [],                         "18_": "Bottom Turbo Bumper",
+        "19":   [],                         "19_": "Right Turbo Bumper",
+        "20":   [],                         "20_": "Left Slingshot",
+        "21":   [],                         "21_": "Right Slingshot",
+        "22":   [],                         "22_": "Laser Kick",
+        "25":   [],                         "1R_": "2 insert, 1 back pnl, 1 dr tgt. flashers",
+        "26":   [],                         "2R_": "2 insert, 2 lower left flashers",
+        "27":   [],                         "3R_": "2 insert, 2 upper right flipper flasher",
+        "28":   [],                         "4R_": "1 insert, 3 upper left flipper flashers",
+        "29":   [],                         "5R_": "2 insert, 1 back pnl, 1 top plfd flasher",
+        "30":   [],                         "6R_": "2 insert, lower right flashers",
+        "31":   [],                         "7R_": "1 insert, 3 Turbo Bumpers flashers",
+        "32":   [],                         "8R_": "2 insert, lower ramp flashers"
+    },
+    "videomodes": [
+        {
+            "name": "Ironman",
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        },
+        {
+            "name": "Waterskiing",
+            "ready": false, "notes": "not started",
+            "snapshot_index": 2
+        }
+    ]
+}

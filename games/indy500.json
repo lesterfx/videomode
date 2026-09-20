@@ -1,0 +1,11 @@
+{
+    "name": "Indianapolis 500",
+    "rom": "i500_11r",
+    "platform": "wpc",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

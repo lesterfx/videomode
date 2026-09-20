@@ -39,7 +39,7 @@ class TextRender:
         self.width = width
         self.height = height
         self.depth = depth
-        self.t = 0
+        self.t: float = 0
         self.clear()
         self.log = logging.getLogger('TextRender')
 
@@ -49,12 +49,12 @@ class TextRender:
 
     def draw_text(
         self,
-        text: str|list[tuple[str, int|Callable[[int, int, int], int]]],
+        text: str|list[tuple[str, int|Callable[[int, int, float], int]]],
         y: int,
         x: int = 0,
         right: bool = False,
         center: bool = False,
-        color: int|Callable[[int, int, int], int] = 3,
+        color: int|Callable[[int, int, float], int] = 3,
         font: int|tuple[int, int] = 7,
         box_x: Optional[int] = None,
         box_y: Optional[int] = None,
@@ -63,7 +63,7 @@ class TextRender:
         background: bool = False,
         outline: bool = False,
         kerning: int = 1,
-        outline_color: int|Callable[[int, int, int], int] = 0,
+        outline_color: int|Callable[[int, int, float], int] = 0,
         minx: Optional[int] = None,
         max_width: Optional[int] = None
     ) -> None:
@@ -74,7 +74,7 @@ class TextRender:
         box_r = min(self.width, box_r if box_r is not None else self.width)
         box_b = min(self.height, box_b if box_b is not None else self.height)
 
-        cols: list[tuple[int, int, int|Callable[[int, int, int], int]]] = []
+        cols: list[tuple[int, int, int|Callable[[int, int, float], int]]] = []
         i = 0
         if isinstance(text, str):
             textlist = [(ch, color) for ch in text]
@@ -84,7 +84,7 @@ class TextRender:
         if max_width is not None and isinstance(font, int):
             font = self._fit_font(textlist, font, kerning, max_width)
 
-        cols: list[tuple[int, int, int|Callable[[int, int, int], int]]] = []
+        cols: list[tuple[int, int, int|Callable[[int, int, float], int]]] = []
         for ch, color in textlist:
             for col in self._char_columns(ch, font=font):
                 cols.append((i, col, color))
@@ -92,7 +92,7 @@ class TextRender:
             i += kerning  # next character
         i -= kerning  # no kerning after the last character
         if max_width is not None and len(cols) > max_width:
-            raise TextTooWide(f'text would have been {len(cols)} pixels wide')
+            raise TextTooWide(f'text "{"".join([t[0] for t in textlist])}" at font {font} {len(cols)} pixels wide')
 
         start_x = x
         if right:
@@ -111,7 +111,6 @@ class TextRender:
                 font = (font, 1),
                 color = outline_color,
                 kerning = kerning - 2,
-                max_width=max_width
             )
 
 
@@ -140,7 +139,7 @@ class TextRender:
 
     def _text_width(
         self,
-        textlist: list[tuple[str, int|Callable[[int, int, int], int]]],
+        textlist: list[tuple[str, int|Callable[[int, int, float], int]]],
         font: int|tuple[int, int],
         kerning: int
     ) -> int:
@@ -156,7 +155,7 @@ class TextRender:
 
     def _fit_font(
         self,
-        textlist: list[tuple[str, int|Callable[[int, int, int], int]]],
+        textlist: list[tuple[str, int|Callable[[int, int, float], int]]],
         font: int,
         kerning: int,
         max_width: int
@@ -219,7 +218,7 @@ class TextRender:
         for index, _x, _y in self._box(x, y, w, h):
             self.frame[index] = (2**self.depth-1) - self.frame[index]
 
-    def box(self, x:int, y:int, w:int, h:int, color: int|Callable[[int, int, int], int]) -> None:
+    def box(self, x:int, y:int, w:int, h:int, color: int|Callable[[int, int, float], int]) -> None:
         for index, _x, _y in self._box(x, y, w, h):
             if callable(color):
                 col = color(_x, _y, self.t)

@@ -46,8 +46,9 @@ def _shade_to_idx(value: int, max_value: int) -> int:
 
 def render_ascii(
     frame: bytes | bytearray,
-    *,
-    double_wide: bool = True,
+    double_wide: bool,
+    width: int,
+    height: int
 ) -> list[str]:
     """
     Convert a raw DMD frame to ASCII art rows.
@@ -79,23 +80,25 @@ def render_ascii(
         rows.append("".join(row_chars))
     return rows
 
-
 def print_ascii_frame(
     frame: bytes | bytearray,
-    label='',
-    double_wide: bool = True,
-    header: str = "",
+    scroll_to_top: bool = False,
+    label_getter: Optional[Callable] = None,
+    width: Optional[int] = None,
+    height: Optional[int] = None
 ) -> None:
     """Print a DMD frame to stdout with an optional header line."""
+    if width is None or height is None:
+        raise AttributeError('Missing width and/or height')
     w, h = width, height
-    if not isinstance(label, str):
+    double_wide = True
+    if label_getter:
+        label = label_getter()
+    else:
         label = ''
     sep = label.center(w * (2 if double_wide else 1), '-')
-    if header:
-        print(f"┌─ {header} {'─' * max(0, len(sep) - len(header) - 3)}┐", end='\r\n')
-    else:
-        print(f"┌{sep}┐", end='\r\n')
-    for row in render_ascii(frame, double_wide=double_wide):
+    print(f"┌{sep}┐", end='\r\n')
+    for row in render_ascii(frame, double_wide=double_wide, width=width, height=height):
         print(f"│{row}│", end='\r\n')
     print(f"└{sep}┘", end='\r\n')
 

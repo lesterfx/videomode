@@ -1,0 +1,35 @@
+{
+    "name": "Star Trek: Next Generation",
+    "rom": "sttng_l7",
+    "platform": "wpc",
+    "active_switches": [22, 45, 61, 62, 63, 64, 65],
+    "left_flipper_switch": 114,
+    "right_flipper_switch": 112,
+    "launch_switch": 12,
+    "auto_switches": {
+        "1":  [[38, false]],                "1_":  "Left gun kicker (fires the gun)",
+        "2":  [[34, false]],                "2_":  "Right gun kicker (fires the gun)",
+        "3":  [[38, true]],                 "3_":  "Left gun popper (loads the gun)",
+        "4":  [[34, true]],                 "4_":  "Right gun popper (loads the gun)",
+        "5":  [],                           "5_":  "Left popper (goes to a return lane)",
+        "6":  [[68, false]],                "6_":  "Plunger (launch ball into play)",
+        "8":  [],                           "8_":  "Kicker (kickback)",
+        "11": [[68, true], [66, false]],    "11_": "Trough (ejects ball to shooter lane)",
+        "15": [],                           "15_": "Top diverter",
+        "16": [],                           "16_": "Borg kicker (maybe end of video mode?)",
+        "17": [],                           "17_": "Left gun motor",
+        "18": [],                           "18_": "Right gun motor",
+        "37": [],                           "37_": "Under diverter top",
+        "38": [],                           "38_": "Under diverter bottom",
+        "39": [],                           "39_": "Top drop up",
+        "40": [],                           "40_": "Top drop down"
+    },
+    "end_detector_config": {
+        "trigger_solenoid": 5
+    },
+    "videomodes": [
+        {
+            "snapshot_index": 1
+        }
+    ]
+}

@@ -68,6 +68,8 @@ class VideoModeSession:
         try:
             self.display.set_bit_depth(game.parent.bit_depth)
             self.detector.reset(game.parent.end_detector_config, active=False)
+            snapshot_name = f'{game.parent.rom}-{game.snapshot_index}.sta'
+            self.log.info('loading snapshot: %s', snapshot_name)
             self.load_snapshot(game.snapshot_index)
 
             start_time = time.monotonic()
@@ -140,6 +142,8 @@ class VideoModeSession:
             self.log.error('game timed out. fix configuration, or increase timeout')
             ctx.err = 'VIDEO MODE TIMEOUT'
             return ScreenState.GAME_FAILED
+        except KeyboardInterrupt:
+            self.log.info(self.display.stack)
         except Exception as e:
             ctx.err = str(e)
             self.log.error('game error', exc_info=True)

@@ -1,0 +1,18 @@
+{
+    "name": "The Champion Pub",
+    "rom": "cp_16",
+    "platform": "wpc",
+    "active_switches": [22, 33, 34, 35, 37],
+    "left_flipper_switch": 114,
+    "right_flipper_switch": 112,
+    "launch_switch": 11,
+    "end_detector_config": {
+        "grace_period_seconds": 5,
+        "trigger_solenoid": 31
+    },
+    "videomodes": [
+        {
+            "snapshot_index": 1
+        }
+    ]
+}

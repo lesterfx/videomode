@@ -1,0 +1,11 @@
+{
+    "name": "Harley Davidson",
+    "rom": "harl_a30",
+    "platform": "wpc",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

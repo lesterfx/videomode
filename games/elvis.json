@@ -1,0 +1,46 @@
+{
+    "name": "Elvis",
+    "rom": "elvis",
+    "platform": "stern",
+    "snapshot_startup_switches": [11, 12, 13, 14],
+    "auto_switches": {
+        "1":  [[11, false], [16, true]], "1_":  "trought up-kicker",
+        "2":  [[16, false]], "2_":  "auto launch",
+        "3":  [[17, true], [18, true], [19, true], [20, true], [21, true]], "3_":  "elvis 5-bank reset",
+        "4":  [], "4_":  "opt) shaker motor",
+        "5":  [], "5_":  "magnet",
+        "6":  [], "6_":  "center eject",
+        "7":  [], "7_":  "hotel lock release",
+        "8":  [], "8_":  "control gate",
+        "9":  [], "9_":  "left bumper",
+        "10": [], "10_": "right bumper",
+        "11": [], "11_": "bottom bumper",
+        "12": [[32, false]], "12_": "top eject",
+        "13": [], "13_": "upper left flipper",
+        "14": [], "14_": "upper right flipper",
+        "15": [], "15_": "left flipper",
+        "16": [], "16_": "right flipper",
+        "17": [], "17_": "left slingshot",
+        "18": [], "18_": "right slingshot",
+        "19": [], "19_": "hotel door",
+        "20": [], "20_": "flash: back panel x2",
+        "21": [], "21_": "flash: backpanel tcb",
+        "22": [], "22_": "flash: spinner",
+        "23": [], "23_": "flash: upr rt flipper x2",
+        "24": [], "24_": "optional coil",
+        "25": [], "25_": "stepper #1",
+        "26": [], "26_": "stepper #2",
+        "27": [], "27_": "stepper #3",
+        "28": [], "28_": "stepper #4",
+        "29": [], "29_": "elvis legs",
+        "30": [], "30_": "elvis arms",
+        "31": [], "31_": "flash: elvis spot light",
+        "32": [], "32_": "flash: slings x2"
+    },
+    "videomodes": [
+        {
+            "ready": false, "notes": "drop targets don't score?",
+            "snapshot_index": 1
+        }
+    ]
+}

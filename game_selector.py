@@ -4,7 +4,7 @@ import json
 from operator import attrgetter
 from pathlib import Path
 from text_to_dmd import ColorRamp
-from typing import Optional
+from typing import Callable, Optional
 
 from vm_types import GameEntry, GameParent, EndDetectorConfig
 from button import ButtonInput, NavEvent
@@ -43,33 +43,13 @@ class GameSelectScreen(Screen):
     def load_games(self) -> None:
         self.screenshots = {key: bytes(int(ch) for ch in screenshot) for key, screenshot in json.load(open(Path(__file__).parent / 'screenshots.json')).items() if screenshot}
 
-        entries = json.load(open(Path(__file__).parent / 'games.json'))
-        for entry in entries:
-            videomodes = entry.pop('videomodes', [])
-            end_cfg = entry.pop('end_detector_config', {})
-            entry['end_detector_config'] = EndDetectorConfig(**end_cfg)
-            parent = GameParent(**entry)
-            if not parent.rom or not (Path.home() / '.pinmame' / 'roms' / (parent.rom + '.zip')).exists():
-                parent.rom = None
-            if not videomodes:
-                self.log.warning(f'NO VIDEO MODES CONFIGURED: {parent}')
-            for i, videomode in enumerate(videomodes, 1):
-                game = GameEntry(parent=parent, **videomode, snapshot_index=i)
-                if not game.ready:
-                    game.msg = 'NOT READY'
-                if not parent.rom:
-                    game.ready = False
-                    game.msg = 'NO ROM'
-                if not (Path.home() / '.pinmame' / 'sta' / f'{parent.rom}-{game.snapshot_index}.sta').exists():
-                    game.ready = False
-                    game.msg = 'NO SNAPSHOT'
-                    self.log.warning('no snapshot for game %s %s', parent, game)
-                parent.children.append(game)
-            if not parent.children:
-                continue
-            self._parents.append(parent)
-            parent.children.sort(key=attrgetter('name'))
-            self._games.extend(parent.children)
+        keys: list = json.load(open(Path(__file__).parent / 'games' / '_games.json'))
+        for key in keys:
+            try:
+                self.load_game(key)
+            except:
+                self.log.error('could not load game %s', key)
+                raise
         y = 0
         for parent in self._parents:
             parent.y = y
@@ -77,6 +57,34 @@ class GameSelectScreen(Screen):
             for game in parent.children:
                 game.y = y
                 y += 6 * len((game.name + ' ').splitlines())
+
+    def load_game(self, key):
+        entry: dict = json.load(open(Path(__file__).parent / 'games' / key))
+        videomodes = entry.pop('videomodes', [])
+        end_cfg = entry.pop('end_detector_config', {})
+        entry['end_detector_config'] = EndDetectorConfig(**end_cfg)
+        parent = GameParent(**entry)
+        if not parent.rom or not (Path.home() / '.pinmame' / 'roms' / (parent.rom + '.zip')).exists():
+            parent.rom = None
+        if not videomodes:
+            self.log.warning(f'NO VIDEO MODES CONFIGURED: {parent}')
+        for videomode in videomodes:
+            game = GameEntry(parent=parent, **videomode)
+            if not game.ready:
+                game.msg = 'NOT READY'
+            if not parent.rom:
+                game.ready = False
+                game.msg = 'NO ROM'
+            if not (Path.home() / '.pinmame' / 'sta' / f'{parent.rom}-{game.snapshot_index}.sta').exists():
+                game.ready = False
+                game.msg = 'NO SNAPSHOT'
+                self.log.warning('no snapshot for game %s %s', parent, game)
+            parent.children.append(game)
+        if not parent.children:
+            return
+        self._parents.append(parent)
+        parent.children.sort(key=attrgetter('name'))
+        self._games.extend(parent.children)
 
     @staticmethod
     def _format_game(score):
@@ -107,6 +115,7 @@ class GameSelectScreen(Screen):
         self.reset_timeout()
         self.snapshotter = ctx.snapshotting
         self.screenshotter = ctx.screenshotting
+        title: list[tuple[str, Callable[[int, int, float], int]|int]]|str
         if self.snapshotter:
             title = 'MAKING ROM SNAPSHOT'
         elif self.screenshotter:
@@ -149,12 +158,12 @@ class GameSelectScreen(Screen):
             elif event is NavEvent.SELECT:
                 self.reset_timeout()
                 ctx.game = self._selected_game
-                if self._selected_game.ready or self.snapshotter:
-                    self.draw_loading()
-                    return ScreenState.GAME_SELECTED
-                else:
-                    ctx.err = self._selected_game.msg
-                    return ScreenState.GAME_FAILED
+                # if self._selected_game.ready or self.snapshotter:
+                self.draw_loading()
+                return ScreenState.GAME_SELECTED
+                # else:
+                #     ctx.err = self._selected_game.msg
+                #     return ScreenState.GAME_FAILED
             elif event is NavEvent.LEFT:
                 move = -1
                 self.reset_timeout()
@@ -194,7 +203,7 @@ class GameSelectScreen(Screen):
         )
         self.show()
 
-    def draw_frame(self, title:Optional[str] = None):
+    def draw_frame(self, title:Optional[str|list[tuple[str, int|Callable[[int, int, float], int]]]] = None):
         self.text.clear()
 
         if title:

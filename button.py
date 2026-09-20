@@ -25,8 +25,19 @@ GPIO_PIN_LAUNCH   = 7   # launch button → LAUNCH
 DEBOUNCE_S = 0.03   # 50 ms; raise to ~0.08 if double-fires occur; lower to ~0.03 if missed
 
 #: How long a flipper must be held before get_key_presses() re-fires it as a
-#: fresh press, so holding a flipper down keeps scrolling a menu.
-REPEAT_INTERVAL_S = 0.3
+#: fresh press, so holding a flipper down keeps scrolling a menu. This is
+#: the *starting* interval — see REPEAT_MIN_INTERVAL_S / REPEAT_ACCEL_WINDOW_S
+#: for how it shortens the longer the button stays held.
+REPEAT_MAX_INTERVAL_S = 0.3
+
+#: The repeat interval never gets faster than this, no matter how long a
+#: button has been held — keeps fast-scrolling readable instead of a blur.
+REPEAT_MIN_INTERVAL_S = 0.06
+
+#: How many seconds of continuous hold it takes to go from REPEAT_MAX_INTERVAL_S
+#: down to REPEAT_MIN_INTERVAL_S. Interval decreases linearly over this
+#: window, then stays pinned at REPEAT_MIN_INTERVAL_S beyond it.
+REPEAT_ACCEL_WINDOW_S = 1.5
 
 #: How long both flippers must be held together before BOTH_LONG fires, on
 #: top of the immediate BOTH that fires as soon as the chord is detected.
@@ -44,22 +55,33 @@ class NavEvent(Enum):
 
     NONE      — nothing changed on this tick (still useful to callers that
                 redraw/animate every tick regardless of input)
-    LEFT      — left flipper pressed (or held past REPEAT_INTERVAL_S)
-    RIGHT     — right flipper pressed (or held past REPEAT_INTERVAL_S)
+    LEFT      — left flipper pressed (or held past REPEAT_*_INTERVAL_S)
+    RIGHT     — right flipper pressed (or held past REPEAT_*_INTERVAL_S)
     SELECT    — launch button pressed; terminal — get_key_presses() returns
                 after yielding this once
-    BOTH      — left and right flippers are held down at the same time;
-                fires immediately on the chord and again on every tick for
-                as long as both remain held
-    BOTH_LONG — fires once, in addition to BOTH, the moment the chord has
-                been held continuously for BOTH_LONG_HOLD_S seconds. Does
-                not repeat — callers wanting a one-shot "long hold" signal
-                (e.g. force logout) should key off this instead of timing
-                BOTH themselves.
+    BOTH      — left and right flippers were chorded and released again
+                before the chord reached BOTH_LONG_HOLD_S. Deliberately
+                deferred until release (rather than firing the instant the
+                chord starts) — a caller that reacts to BOTH by returning
+                immediately must never see it fire prematurely, or
+                BOTH_LONG could never be reached for that same hold. Fires
+                exactly once per chord.
+    BOTH_LONG — left and right flippers have been held continuously for
+                BOTH_LONG_HOLD_S seconds. Fires once, immediately at the
+                threshold — it does not wait for release, so a "big"
+                action (e.g. force logout) still feels instant. Mutually
+                exclusive with BOTH for a given chord: a hold either
+                resolves as one or the other, never both.
 
     BOTH/BOTH_LONG only report that the chord happened. What it *means* —
     back, cancel, force logout, or nothing at all — is entirely up to the
     caller; ButtonInput has no opinion about menu semantics.
+
+    Callers wanting live feedback *while* a chord is being held (e.g.
+    dimming the screen before a long-hold action commits) should poll
+    is_held(LEFT_FLIPPER) and is_held(RIGHT_FLIPPER) directly rather than
+    waiting on a NavEvent — those two are decoupled on purpose, since
+    "still holding" isn't itself an event.
     """
     NONE      = auto()
     LEFT      = auto()
@@ -67,7 +89,6 @@ class NavEvent(Enum):
     SELECT    = auto()
     BOTH      = auto()
     BOTH_LONG = auto()
-    TIMEOUT   = auto()
 
 
 @dataclass(frozen=True)
@@ -185,7 +206,7 @@ class ButtonInput:
 
         Yields a NavEvent on every poll tick — NavEvent.NONE when nothing
         changed, otherwise LEFT/RIGHT for the flippers. A held flipper
-        re-fires every REPEAT_INTERVAL_S so callers get hold-to-repeat
+        re-fires every REPEAT_*_INTERVAL_S so callers get hold-to-repeat
         scrolling without extra bookkeeping.
 
         Terminates by yielding one of two terminal signals and then
@@ -202,19 +223,34 @@ class ButtonInput:
         """
 
         # pretend remnant presses are nothing until nothing is actually pressed
-        while any(self._held.values()):
+        for event in self._get_key_presses():
             yield NavEvent.NONE
+            if event == NavEvent.NONE:
+                break
         for event in self._get_key_presses():
             if event is not NavEvent.NONE:
-                if event is NavEvent.BOTH_LONG:
-                    self.log.info('both long!')
+                self.log.info('passing event, %s', event)
             yield event
 
         raise Exception('no return...')
-        
+
+    def _repeat_interval(self, held_for: float) -> float:
+        """
+        Repeat interval for a button that has been continuously held for
+        `held_for` seconds — starts at REPEAT_MAX_INTERVAL_S and ramps linearly
+        down to REPEAT_MIN_INTERVAL_S over REPEAT_ACCEL_WINDOW_S seconds, so
+        scrolling a long list accelerates the longer a flipper stays down.
+        """
+        t = min(1.0, held_for / REPEAT_ACCEL_WINDOW_S)
+        return REPEAT_MAX_INTERVAL_S + (REPEAT_MIN_INTERVAL_S - REPEAT_MAX_INTERVAL_S) * t
 
     def _get_key_presses(self) -> Generator[NavEvent, None, NoReturn]:
         pressed: list[ButtonName] = []
+        # When each currently-held button's hold began — set once on the
+        # original press, untouched by repeat-firing, so held_for below
+        # reflects true continuous hold duration rather than time since
+        # the last repeat.
+        held_since: dict[ButtonName, float] = {}
         pressed_at = time.monotonic()
         was_both = False
 
@@ -233,24 +269,30 @@ class ButtonInput:
                 if event.pressed:
                     if event.button not in pressed:
                         pressed.append(event.button)
+                        held_since[event.button] = now
                     pressed_at = now
                 else:
                     if event.button in pressed:
                         pressed.remove(event.button)
+                    held_since.pop(event.button, None)
 
-            if pressed and now >= pressed_at + REPEAT_INTERVAL_S:
-                pressed_at = now
-                button = pressed.pop(0)
-                pressed.append(button)
-                event = ButtonEvent(button, True)
+            if pressed:
+                # Round-robin: whichever button is next in line governs
+                # the timing of this repeat, and its own hold duration
+                # (not the shared pressed_at) decides how fast it fires.
+                next_button = pressed[0]
+                held_for = now - held_since.get(next_button, now)
+                if now >= pressed_at + self._repeat_interval(held_for):
+                    pressed_at = now
+                    button = pressed.pop(0)
+                    pressed.append(button)
+                    event = ButtonEvent(button, True)
 
             both_held = self.is_held(ButtonName.LEFT_FLIPPER) and self.is_held(ButtonName.RIGHT_FLIPPER)
 
             if not both_held:
                 # Chord broken (or never started) — clear long-hold tracking
                 # so the next chord has to earn BOTH_LONG from scratch.
-                if both_since:
-                    yield NavEvent.BOTH
                 both_since = None
                 both_long_fired = False
 
@@ -263,8 +305,7 @@ class ButtonInput:
                     yield NavEvent.BOTH_LONG
                 else:
                     was_both = True
-                    # yield NavEvent.BOTH
-                    yield NavEvent.NONE
+                    yield NavEvent.BOTH
 
             elif event and event.pressed:
                 if event.button is ButtonName.LEFT_FLIPPER:

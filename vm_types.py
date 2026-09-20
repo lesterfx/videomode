@@ -2,6 +2,12 @@ from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum, auto
 
+class Arrow(Enum):
+    UP = auto()
+    DOWN = auto()
+    RIGHT = auto()
+    LEFT = auto()
+
 @dataclass
 class EndDetectorConfig:
     """Per-game tuning, sourced from GameEntry at session start."""
@@ -34,6 +40,8 @@ class GameParent:
     name: str
     # display name shown on DMD
 
+    platform: str
+
     rom: Optional[str] = None
     # ROM identifier passed to PinMAME
 
@@ -50,13 +58,13 @@ class GameParent:
 
     end_detector_config: EndDetectorConfig = field(default_factory=EndDetectorConfig)
 
-    platform: str = 'wpc'
-
     y: Optional[int] = None
 
     bit_depth: int = 2
 
     auto_switches: dict[str, tuple[tuple[int, bool], ...]] = field(default_factory=dict)
+
+    snapshot_startup_switches: list[int] = field(default_factory=list)
 
     def __str__(self):
         return (self.name or 'unknown game').replace('\n', ' ')
@@ -66,9 +74,9 @@ class GameParent:
 class GameEntry:
     parent: GameParent
 
-    snapshot_index:int
+    snapshot_index: int
 
-    ready: bool
+    ready: bool = True
 
     name: str = ''
 

@@ -1,0 +1,31 @@
+{
+    "name": "Indiana Jones",
+    "rom": "ij_l7",
+    "platform": "wpc",
+    "left_flipper_switch": 0,
+    "right_flipper_switch": 0,
+    "launch_switch": 0,
+    "active_switches": [22, 31, 82, 83, 84, 85, 86],
+    "end_detector_config": {
+        "grace_period_seconds": 12,
+        "solenoid_trigger_state": true,
+        "trigger_solenoid": 8
+    },
+    "videomodes": [
+        {
+            "name": "Choose Wisely",
+            "ready": false, "notes": "color is 1-bit",
+            "snapshot_index": 1
+        },
+        {
+            "name": "Mine Cart",
+            "ready": false, "notes": "color is 1-bit",
+            "snapshot_index": 2
+        },
+        {
+            "name": "Ravens Bar",
+            "ready": false, "notes": "color is 1-bit",
+            "snapshot_index": 3
+        }
+    ]
+}

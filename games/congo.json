@@ -1,0 +1,17 @@
+{
+    "name": "Congo",
+    "rom": "congo_21",
+    "platform": "wpc",
+    "active_switches": [32, 33, 34, 37],
+    "left_flipper_switch": 114,
+    "right_flipper_switch": 112,
+    "launch_switch": 0,
+    "end_detector_config": {
+        "grace_period_seconds": 5
+    },
+    "videomodes": [
+        {
+            "snapshot_index": 1
+        }
+    ]
+}

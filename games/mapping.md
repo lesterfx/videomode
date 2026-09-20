@@ -1,46 +1,44 @@
 # sega
 
+1-0   9-1  17-2  25-3  33-4  41-5  49-6  57-7
+2-8  10-9  18-a  26-b  34-c  42-d  50-e  58-f
+3-g  11-h  19-i  27-j  35-k  43-l  51-m  59-n
+4-o  12-p  20-q  28-r  36-s  44-t  52-u  60-v
+5-w  13-x  21-y  29-z  37-A  45-B  53-C  61-D
+6-E  14-F  22-G  30-H  38-I  46-J  54-K  62-L
+7-M  15-N  23-O  31-P  39-Q  47-R  55-S  63-T
+8-U  16-V  24-W  32-X  40-Y  48-Z  56-!  64-@
+
 ## batman forever
 
-        1       2       3       4       5       6       7       8       9
-
-1     1-0     9-8    17-g    25-o    33-w    41-E    49-M    57-U    65-#
-2     2-1    10-9    18-h    26-p    34-x    42-F    50-N    58-V    66-$
-3     3-2    11-a    19-i    27-q    35-y    43-G    51-O    59-W    67-%
-4     4-3    12-b    20-j    28-r    36-z    44-H    52-P    60-X    68-^
-5     5-4    13-c    21-k    29-s    37-A    45-I    53-Q    61-Y    69-&
-6     6-5    14-d    22-l    30-t    38-B    46-J    54-R    62-Z    70-*
-7     7-6    15-e    23-m    31-u    39-C    47-K    55-S    63-!    71-(
-8     8-7    16-f    24-n    32-v    40-D    48-L    56-T    64-@    72-)
-
-`abcde` trough
-`D` batwing home
-`C` batwing safety...
-`5` credit
-`2` start
-`d` untrough
-`f` shooter lane
-`M` trigger
-`@64` right flipper
-`U` pop bumper until `1`
-`E` top eject
-`!63` left flipper
+`` trough
+`` batwing home
+`` batwing safety...
+`` credit
+`` start
+`` untrough
+`` shooter lane
+`` trigger
+`` right flipper
+`` pop bumper until lamp 1 lit
+`` top eject
+`` left flipper
 
 ## apollo 13
 
-`9abcd` trough
-`ghijklmn` 8-ball lock
+`9hpxF` trough
+`2aiqyGOW` 8-ball lock
 
-`2` start
-`9` trough exit
+`8` credits
+`g` start
 
-`I` left orbit
-`J` right orbit
-
-`K` ball eject
-
-`!` left flipper
 `@` right flipper
+`1` launch ball
+
+`B` left orbit
+`J` right orbit
+`R` right ball eject
+
 
 
 # wpc

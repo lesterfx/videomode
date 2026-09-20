@@ -1,0 +1,18 @@
+{
+    "name": "Cirqus Voltaire",
+    "rom": "cv_14",
+    "platform": "wpc",
+    "active_switches": [22, 33, 34, 35, 46],
+    "left_flipper_switch": 114,
+    "right_flipper_switch": 112,
+    "launch_switch": 0,
+    "end_detector_config": {
+        "grace_period_seconds": 5,
+        "trigger_solenoid": 33
+    },
+    "videomodes": [
+        {
+            "snapshot_index": 1
+        }
+    ]
+}

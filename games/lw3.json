@@ -1,0 +1,11 @@
+{
+    "name": "Lethal Weapon 3",
+    "rom": "lw3_208",
+    "platform": "de",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

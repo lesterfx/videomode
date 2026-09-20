@@ -1,0 +1,12 @@
+{
+    "name": "Super Mario Bros",
+    "rom": "smb3",
+    "platform": "gottlieb",
+    "bit_depth": 4,
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}

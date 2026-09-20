@@ -1,0 +1,11 @@
+{
+    "name": "The Who's Tommy Pinball Wizard",
+    "rom": "tomy_500",
+    "platform": "de",
+    "videomodes": [
+        {
+            "ready": false, "notes": "not started",
+            "snapshot_index": 1
+        }
+    ]
+}
