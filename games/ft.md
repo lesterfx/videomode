@@ -22,18 +22,14 @@
  18-#  28-$  38-%  48-^  58-&  68-*  78-(  88-)
 112-- 114-_
 
-
 ## fish tales
 
-- `u` reel 1  
-- `v` reel 2  
-- `d` trough 1  
-- `e` trough 2  
-- `f` trough 3  
-- `a` start button  
-- `d` trough 1 off  
-- `l` left inlane  
-- `N` top right loop  
-- `P` top left loop  
-- `w` captive ball  
-- `O` top eject hole
+- `W` reel 1  
+- `%` reel 2  
+- `o` start button  
+- `a` cast
+- `N` left inlane  
+- `l` top right loop  
+- `B` top left loop  
+- `b` captive ball  
+- `t` top eject hole

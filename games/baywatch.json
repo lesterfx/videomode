@@ -2,8 +2,11 @@
     "name": "Baywatch",
     "rom": "baywatch",
     "platform": "sega",
+    "crop_mode": "scale_min",
     "left_flipper_switch": 63,
     "right_flipper_switch": 64,
+    "launch_switch": 0,
+    "active_switches": [12, 13, 14, 15, 47],
     "snapshot_startup_switches": [10, 11, 12, 13, 14, 15],
     "auto_switches": {
         "1":    [],                         "1L_": "5-Ball Assembly Lockout",
@@ -40,7 +43,7 @@
     "videomodes": [
         {
             "name": "Ironman",
-            "ready": false, "notes": "not started",
+            "ready": true,
             "snapshot_index": 1
         },
         {

@@ -30,7 +30,7 @@ class SettingsScreen(Screen):
         self._selected_index = 0
         self.entries = 0
         self.settings = settings
-        self.keys = 'settings', 'brightness', 'volume', 'log in first'
+        self.keys = ['settings'] + self.settings.keys()
 
     def run(
         self,
@@ -48,12 +48,7 @@ class SettingsScreen(Screen):
         self.values = self.settings.get_settings()
 
         for event in self.buttons.get_key_presses():
-            if event is NavEvent.BOTH:
-                if self._active:
-                    self.reset()
-                    self._active = False
-                else:
-                    return ScreenState.SETTINGS_DONE
+            move = 0
             if event is NavEvent.SELECT:
                 if self._selected_index == 0:
                     self.log.info('back selected')
@@ -68,21 +63,19 @@ class SettingsScreen(Screen):
                 if self._active:
                     self.modify_value(-1)
                 else:
-                    self.move_index(-1)
+                    move = -1
             elif event is NavEvent.RIGHT:
                 if self._active:
                     self.modify_value(1)
                 else:
-                    self.move_index(1)
+                    move = 1
             elif event is NavEvent.NONE:
                 pass
-
+            self.scroll_by(move, max=len(self.keys))
+            self.animate_scroll_toward(0, self._selected_index * 8)
             self.draw_frame()
             
         return ScreenState.SETTINGS_DONE
-
-    def move_index(self, by):
-        self._selected_index = (self._selected_index + by) % len(self.keys)
 
     def modify_value(self, modification):
         key = self.keys[self._selected_index]
@@ -118,10 +111,11 @@ class SettingsScreen(Screen):
 
     def draw_frame(self):
         self.text.clear()
+        OFFSET = self.text.height - 16
         for y, key in zip(count(1, 8), self.keys):
             self.text.draw_text(
                 text = key.upper(),
-                y = y,
+                y = y - self._scroll[1] + OFFSET,
                 x = 6,
                 font = 7,
                 color = 3
@@ -130,7 +124,7 @@ class SettingsScreen(Screen):
                 value = self.values[key]
                 self.text.draw_text(
                     text = self._value_str(value),
-                    y = y,
+                    y = y - self._scroll[1] + OFFSET,
                     x = self.text.width - 6,
                     right = True,
                     font = 7,
@@ -149,7 +143,7 @@ class SettingsScreen(Screen):
             right = False
         self.text.draw_text(
             text = text,
-            y = y,
+            y = y - self._scroll[1] + OFFSET,
             x = x,
             right = right,
             font = 7,

@@ -30,7 +30,8 @@ DEFAULT_SETTINGS_PATH = Path(os.path.dirname(__file__)) / 'settings.json'
 DEFAULT_VALUES = {
     "brightness": 30,
     "volume": 30,
-    "log in first": True
+    "log in first": True,
+    "use splash screens": True
 }
 
 class SettingsStore:
@@ -72,6 +73,10 @@ class SettingsStore:
         settings[key] = value
         self._save(settings)
         self.log.info("Updated setting %s — %s", key, value)
+
+    def keys(self) -> list[str]:
+        """Return the keys in the order they should be displayed"""
+        return list(DEFAULT_VALUES)
 
     def _load(self) -> dict[str, bool|int]:
         if not self.db_path.exists():

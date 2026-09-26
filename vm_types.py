@@ -66,6 +66,10 @@ class GameParent:
 
     snapshot_startup_switches: list[int] = field(default_factory=list)
 
+    crop_mode: str = 'crop'
+
+    snapshot_delay: float = 0.0
+
     def __str__(self):
         return (self.name or 'unknown game').replace('\n', ' ')
 
@@ -132,3 +136,4 @@ class ScreenState(Enum):
     GAME_FAILED = auto()
     SCORE_FINISHED = auto()
     TIMEOUT = auto()
+    AFTER_BLANK = auto()

@@ -2,6 +2,7 @@
     "name": "Apollo 13",
     "rom": "apollo13",
     "platform": "sega",
+    "snapshot_delay": 3,
     "active_switches": [11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 47],
     "left_flipper_switch": 63,
     "right_flipper_switch": 64,

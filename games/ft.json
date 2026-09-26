@@ -6,6 +6,26 @@
     "left_flipper_switch": 114,
     "right_flipper_switch": 112,
     "launch_switch": 31,
+    "snapshot_startup_switches": [16, 17, 18],
+    "auto_switches": {
+        "1":    [56, false], "1L_": "Ball shooter",
+        "2":    [], "2L_": "Catapult",
+        "3":    [], "3L_": "Ball popper",
+        "4":    [], "4L_": "Left sling",
+        "5":    [], "5L_": "Right sling",
+        "6":    [], "6L_": "Left gate",
+        "7":    [], "7L_": "Knocker",
+        "8":    [], "8L_": "Backbox fish",
+        "9":    [[15, false], [16, true]], "9_":  "Outhole",
+        "10":   [[16, false], [56, true]], "10_": "Ball release",
+        "11":   [], "11_": "Eject hole",
+        "12":   [], "12_": "Drop target up",
+        "13":   [], "13_": "Drop target down",
+        "14":   [], "14_": "Left jet",
+        "15":   [], "15_": "Center jet",
+        "16":   [], "16_": "Right jet",
+        "28":   [], "17_": "Reel motor"
+    },
     "end_detector_config": {
         "grace_period_seconds": 5,
         "trigger_solenoid": 11

@@ -263,7 +263,7 @@ class PinMAMEBridge:
     # trigger_keycode() — send a keycode to the emulator for n frames
     # ------------------------------------------------------------------
 
-    def _trigger_keycode(self, *keycodes: int, delay=0, duration=.5) -> None:
+    def _trigger_keycode(self, *keycodes: int, delay:float=0, duration=.5) -> None:
         """Report a keycode as pressed for a fixed number of callback invocations."""
         start = time.monotonic() + delay
         for keycode in keycodes:
@@ -274,9 +274,8 @@ class PinMAMEBridge:
         self._trigger_keycode(Keycode.F7, Keycode.LEFT_SHIFT)
         self._trigger_keycode(number_code, delay=1)
 
-    def load_snapshot(self, index: int):
+    def load_snapshot(self, index: int, delay: float=3):
         number_code = getattr(Keycode, f'NUMBER_{index}')
-        delay = 3
         self._trigger_keycode(Keycode.F7, delay=delay)
         self._trigger_keycode(number_code, delay=delay+1)
 

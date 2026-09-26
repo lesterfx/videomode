@@ -290,22 +290,27 @@ class ButtonInput:
 
             both_held = self.is_held(ButtonName.LEFT_FLIPPER) and self.is_held(ButtonName.RIGHT_FLIPPER)
 
-            if not both_held:
-                # Chord broken (or never started) — clear long-hold tracking
-                # so the next chord has to earn BOTH_LONG from scratch.
-                both_since = None
-                both_long_fired = False
-
             if both_held:
                 if both_since is None:
-                    both_since = now   # chord just started — BOTH fires now
+                    both_since = now   # chord just started
                 if not both_long_fired and now - both_since >= BOTH_LONG_HOLD_S:
                     both_long_fired = True
                     was_both = True
                     yield NavEvent.BOTH_LONG
                 else:
+                    # Chord in progress but not yet resolved. BOTH itself is
+                    # deferred until release so a caller reacting to it by
+                    # returning immediately can't cut the hold short before
+                    # BOTH_LONG has a chance to fire.
+                    yield NavEvent.NONE
+
+            elif both_since is not None:
+                # Chord just released.
+                if not both_long_fired:
                     was_both = True
                     yield NavEvent.BOTH
+                both_since = None
+                both_long_fired = False
 
             elif event and event.pressed:
                 if event.button is ButtonName.LEFT_FLIPPER:

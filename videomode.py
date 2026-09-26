@@ -72,6 +72,8 @@ def parse_args() -> argparse.Namespace:
                    help="Run games from boot in order to save snapshot")
     p.add_argument("--screenshotter", action="store_true",
                    help="Run games from boot in order to save screenshot")
+    p.add_argument("--screen", type=str, default=None, 
+                   help="Start at a particular screen")
     parsed = p.parse_args()
     print(parsed)
     return parsed
@@ -97,6 +99,10 @@ class PinMAMEPlayer:
         args = parse_args()
         self.snapshotting = args.snapshotter
         self.screenshotting = args.screenshotter
+        if args.screen:
+            self.start_screen = ScreenState[args.screen]
+        else:
+            self.start_screen = ScreenState.AFTER_BLANK
 
         if self.snapshotting:
             logging.basicConfig(
@@ -137,7 +143,8 @@ class PinMAMEPlayer:
             display = self.display,
             buttons = self.buttons,
             detector = self.detector,
-            screenshotting = self.screenshotting
+            screenshotting = self.screenshotting,
+            settings = self.settings
         )
         self.players = PlayerStore()
         self.login = PlayerLoginScreen(self.display, self.buttons, self.players)
@@ -181,6 +188,12 @@ class PinMAMEPlayer:
         if self.settings.get('log in first'):
             return ScreenState.LOGIN
         ctx.initials = None
+        return ScreenState.TIMEOUT
+
+    def after_blank(self, ctx: SessionContext) -> ScreenState:
+        if self.settings.get('log in first'):
+            return ScreenState.LOGIN
+        ctx.initials = None
         return ScreenState.GUEST_SELECTED
 
     def run(self) -> None:
@@ -201,7 +214,8 @@ class PinMAMEPlayer:
             ScreenState.NO_HIGH_SCORE:              self.not_high_score.run,  # GUEST_SELECTED, LOGGED_IN
             ScreenState.GAME_FAILED:                self.generic_message('ROM ERROR', ScreenState.NO_HIGH_SCORE),  # NO_HIGH_SCORE
             ScreenState.SCORE_FINISHED:             self.log_out_after_game,  # GUEST_SELECTED, LOGGED_IN
-            ScreenState.TIMEOUT:                    self.blank.run
+            ScreenState.TIMEOUT:                    self.blank.run,
+            ScreenState.AFTER_BLANK:                self.after_blank,
         }
         self._print_graph()
         self._validate_network()
@@ -209,7 +223,8 @@ class PinMAMEPlayer:
         ctx = SessionContext()
         ctx.snapshotting = self.snapshotting
         ctx.screenshotting = self.screenshotting
-        state = ScreenState.EXIT_GAME_SELECT
+
+        state = self.start_screen
 
         try:
             while True:

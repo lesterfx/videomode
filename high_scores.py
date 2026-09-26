@@ -262,7 +262,7 @@ class SaveHighScoreScreen(Screen):
                 font = 15,
                 center = True,
                 x = self.text.width//2,
-                y = 2,
+                y = 3,
                 outline = True,
                 max_width = 120
             )
@@ -271,7 +271,7 @@ class SaveHighScoreScreen(Screen):
                 font = 15,
                 center = True,
                 x = self.text.width//2,
-                y = self.text.height//2,
+                y = self.text.height//2+2,
                 outline = True,
                 max_width = 120
             )

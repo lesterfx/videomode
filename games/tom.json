@@ -6,6 +6,7 @@
     "right_flipper_switch": 112,
     "launch_switch": 0,
     "snapshot_startup_switches": [32, 33, 34, 35],
+    "active_switches": [11, 12, 13, 14, 15, 23],
     "end_detector_config": {
         "ignored_solenoids": [17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 45, 46, 47, 48]
     },

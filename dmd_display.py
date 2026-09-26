@@ -70,7 +70,7 @@ MATRIX_OPTIONS: dict = dict(
     cols                     = 64,
     chain_length             = 2,       # two 64×32 panels chained
     parallel                 = 1,
-    hardware_mapping         = "adafruit-hat",
+    hardware_mapping         = "adafruit-hat-pwm",  # or "adafruit-hat" if pins 4-18 not jumped
     gpio_slowdown            = 4,       # default 2, increase if you see flickering on Pi 3
     brightness               = 30,      # 0-100
     disable_hardware_pulsing = True,    # avoids needing --led-no-hardware-pulse
@@ -116,7 +116,7 @@ class DMDDisplay:
         self._G_MAX = 88
         self._B_MAX = 0
 
-        self.CROP_TO_FIT:bool = True  # True crops, False scales down
+        self.crop_mode:str = 'fit'
         self.pan_x = 0
         self.pan_y = 0
 
@@ -184,6 +184,39 @@ class DMDDisplay:
         self.log.info('redraw frame size %d', len(frame))
         self.show_frame(frame)
 
+    def test(self):
+        canvas = self._canvas
+        if not self._matrix: return
+        start = time.monotonic()
+        if canvas:
+            canvas.Clear()
+            now = time.monotonic()
+            for y in range(self.height):
+                for x in range(self.width):
+                    distance = ((x - self.width/2)**2 + (y - self.height/2)**2)**0.5
+                    phase = now - start
+                    distance += phase
+                    r, g, b = self.rainbow_color(distance)
+                    canvas.SetPixel(x, y, r, g, b)
+        self._canvas = self._matrix.SwapOnVSync(canvas)
+
+    def rainbow_color(self, distance: float) -> tuple[int, int, int]:
+        step, gradient = divmod(distance, 16)
+        step = int(step) % 6
+        if step == 0:
+            return 255, int(gradient*16), 0
+        elif step == 1:
+            return 255-int(gradient*16), 255, 0
+        elif step == 2:
+            return 0, 255, int(gradient*16)
+        elif step == 3:
+            return 0, 255-int(gradient*16), 255
+        elif step == 4: 
+            return int(gradient*16), 0, 255
+        elif step == 5:
+            return 255, 0, 255-int(gradient*16)
+        raise ValueError(f"Invalid step {step} for distance {distance}")
+
     def show_frame(self, frame: bytearray|bytes, layout=None) -> None:
         """
         Push a raw pixel buffer to the display.
@@ -209,10 +242,16 @@ class DMDDisplay:
                 src_h = 64
             else:
                 raise ValueError(f'Unknown frame size {len(frame)}')
-            if self.CROP_TO_FIT:
+            if self.crop_mode == 'crop':
                 frame = self._crop(frame, src_w, src_h)
+            elif self.crop_mode == 'scale_min':
+                frame = self._resample(frame, src_w, src_h, mode='min')
+            elif self.crop_mode == 'scale_max':
+                frame = self._resample(frame, src_w, src_h, mode='max')
+            elif self.crop_mode == 'scale':
+                frame = self._resample(frame, src_w, src_h, mode='average')
             else:
-                frame = self._resample(frame, src_w, src_h)
+                raise ValueError(f'Unknown crop_mode {self.crop_mode}')
 
         if self._use_terminal:
             print_frame(frame, self.shown, self.label_getter, width=self.width, height=self.height)
@@ -297,7 +336,7 @@ class DMDDisplay:
                 for x in range(self.width):
                     intensity = frame[row_off + x] & 0x0F
                     try:
-                        r, g, b   = self._rgb_lut[intensity]
+                        r, g, b = self._rgb_lut[intensity]
                     except IndexError:
                         self.log.error(f'intensity {intensity} out of range')
                         raise
@@ -305,7 +344,12 @@ class DMDDisplay:
         self._canvas = self._matrix.SwapOnVSync(canvas)
  
  
-    def _resample(self, frame: bytearray|bytes, src_w: int, src_h: int) -> bytes:
+    def _resample(self,
+        frame: bytearray|bytes,
+        src_w: int,
+        src_h: int,
+        mode: str = 'average'
+    ) -> bytes:
         """
         Scale a frame from (src_w, src_h) down to fit the panel while
         preserving its aspect ratio, then center it on the panel with black
@@ -357,12 +401,27 @@ class DMDDisplay:
         content_w, content_h = src_w // k, src_h // k
  
         arr = np.frombuffer(frame, dtype=np.uint8).reshape(src_h, src_w)
-        content = (
-            arr.reshape(content_h, k, content_w, k)
-            .mean(axis=(1, 3))
-            .round()
-            .astype(np.uint8)
-        )
+        if mode == 'average':
+            content = (
+                arr.reshape(content_h, k, content_w, k)
+                .mean(axis=(1, 3))
+                .round()
+                .astype(np.uint8)
+            )
+        elif mode == 'min':
+            content = (
+                arr.reshape(content_h, k, content_w, k)
+                .min(axis=(1, 3))
+                .astype(np.uint8)
+            )
+        elif mode == 'max':
+            content = (
+                arr.reshape(content_h, k, content_w, k)
+                .max(axis=(1, 3))
+                .astype(np.uint8)
+            )
+        else:
+            raise ValueError(f"Unknown resample mode {mode}")
  
         canvas = np.zeros((self.height, self.width), dtype=np.uint8)
         x_off = (self.width  - content_w) // 2   # pillarbox (left/right bars)

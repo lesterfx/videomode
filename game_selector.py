@@ -144,6 +144,7 @@ class GameSelectScreen(Screen):
         # self._selected_index = 0
 
         for event in self.buttons.get_key_presses():
+            move = 0
             if event is not NavEvent.NONE:
                 self.log.info(event)
             if event is NavEvent.BOTH:

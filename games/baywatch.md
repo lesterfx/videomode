@@ -10,15 +10,17 @@
 ## baywatch
 
 `g` start button
-`2aiqy` drop targets
-`K` upper right shark fin flipper
-`!` shark super scoop
+`h` turn off extra ball? do we have one too many?
 
 waterskiing video mode:
 spell shark
 rollover by upper right flipper
 then shark scoop until video mode insert lit
+`2aiqy` drop targets
+`K` upper right shark fin flipper
+`!` shark super scoop
 
 ironman video mode:
-spell IRONMAN on the side ramp
+`H` spell IRONMAN on the side ramp
 shoot past spinner to upper ball launch (right side near mini flipper)
+`u` spinner, `R` scoop

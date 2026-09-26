@@ -8,6 +8,7 @@ from typing import Optional
 from bridge import PinMAMEBridge
 from dmd_display import DMDDisplay
 from button import ButtonInput, ButtonName
+from settings import SettingsStore
 from vm_types import SessionContext, ScreenState
 from end_detector import EndDetector, EndDetectorTimedOut
 
@@ -30,12 +31,14 @@ class VideoModeSession:
         display:  DMDDisplay,
         buttons:  ButtonInput,
         detector: EndDetector,
+        settings: SettingsStore,
         **kw
     ) -> None:
         self.pinmame  = pinmame
         self.display  = display
         self.buttons  = buttons
         self.detector = detector
+        self.settings = settings
         self.log      = logging.getLogger("VideoModeSession")
  
     # ------------------------------------------------------------------
@@ -58,22 +61,30 @@ class VideoModeSession:
         """
         game = ctx.game
         assert game
-        self.log.info('disabling dmd')
-        # self.pinmame.dmd_callback = self.display.show_frame
-        self.pinmame.dmd_callback = lambda x, y=0: None # self.log.info('discarding frame')
         assert game.parent.rom, f'{game.parent} has no rom defined - {game.parent.rom}'
         assert game.snapshot_index, f'{game} has no snapshot - {game.snapshot_index}'
+        if self.settings.get('use splash screens'):
+            self.log.info('disabling dmd')
+            # self.pinmame.dmd_callback = self.display.show_frame
+            self.pinmame.dmd_callback = lambda x, y=0: None # self.log.info('discarding frame')
+        else:
+            self.set_up_dmd_for_real(game)
         self.pinmame.load_game(game.parent.rom)
 
+        start_score = None
         try:
             self.display.set_bit_depth(game.parent.bit_depth)
             self.detector.reset(game.parent.end_detector_config, active=False)
             snapshot_name = f'{game.parent.rom}-{game.snapshot_index}.sta'
-            self.log.info('loading snapshot: %s', snapshot_name)
-            self.load_snapshot(game.snapshot_index)
 
             start_time = time.monotonic()
-            start_score = 0
+            while time.monotonic() < start_time + game.parent.snapshot_delay:
+                time.sleep(0.1)
+            self.log.info('loading snapshot: %s', snapshot_name)
+            self.load_snapshot(game.snapshot_index, delay=0)
+
+            start_time = time.monotonic()
+            start_score = None
 
             while time.monotonic() < start_time + 10:
                 for switch in game.parent.active_switches:
@@ -87,13 +98,13 @@ class VideoModeSession:
                         continue
                     break
             else:
-                raise ValueError('NO START SCORE AFTER 10 SECONDS')
+                pass
+                # raise ValueError('NO START SCORE AFTER 10 SECONDS')
 
-            self.log.info(f'start score: {start_score:,}')
+            self.log.info(f'start score: %s', start_score)
 
             # Wire DMD frames to the physical display for both modes.
-            self.log.info('setting up dmd for real now')
-            self.pinmame.dmd_callback = self.display.show_frame
+            self.set_up_dmd_for_real(game)
             # self.display.label_getter = self.score_label_getter
             self.detector.reset(game.parent.end_detector_config)
 
@@ -157,6 +168,8 @@ class VideoModeSession:
         if start_score is not None and end_score is not None:
             self.log.info(f'start score {start_score:,}, end score {end_score:,}')
             score = end_score - start_score
+        else:
+            score = None
 
         duration = end_time - start_time
         self.log.info("Session ended (sol %d) — score=%s duration=%.1fs",
@@ -172,8 +185,13 @@ class VideoModeSession:
     def score_label_getter(self):
         return f'score: {self.pinmame.get_score()}'
 
-    def load_snapshot(self, index: int):
-        self.pinmame.load_snapshot(index)
+    def load_snapshot(self, index: int, delay: float=3):
+        self.pinmame.load_snapshot(index, delay)
+
+    def set_up_dmd_for_real(self, game):
+        self.log.info('setting up dmd for real now')
+        self.display.crop_mode = game.parent.crop_mode
+        self.pinmame.dmd_callback = self.display.show_frame
 
 def was_game_high_score(ctx: SessionContext) -> ScreenState:
     assert ctx.game

@@ -138,6 +138,14 @@ class Blank(Screen):
     def run(self, ctx):
         self.text.clear()
         self.show()
+        pressed = False
         for button in self.buttons.get_key_presses():
-            if button is not NavEvent.NONE:
-                return ScreenState.EXIT_GAME_SELECT
+            if pressed and button is NavEvent.NONE:
+                # self.log.info('press and release, exit game select')
+                return ScreenState.AFTER_BLANK
+            elif button is NavEvent.BOTH_LONG:
+                # self.log.info('both pressed long, entering settings')
+                return ScreenState.ENTER_SETTINGS
+            elif button is not NavEvent.NONE:
+                pressed = True
+                # self.log.info('button pressed')
